@@ -419,3 +419,4 @@ verify_jwt = true
 # يُستدعى من pg_cron بالترويسة x-cron-secret، والدالة تتحقق بنفسها من السر أو من جلسة إداري
 [functions.send-messages]
 verify_jwt = false
+
