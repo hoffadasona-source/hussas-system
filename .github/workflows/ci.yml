@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: بناء الواجهة
+        run: npm run build
+
+      - name: مطابقة احتساب الدرجات بين الواجهة والخادم
+        run: npm run test:scoring
+
+      - name: اختبار أداة الاستيراد
+        run: npm run test:import
+
+      - name: اختبار مزودي الإرسال
+        run: npm run test:messaging
+
+      - name: اختبار قاعدة البيانات وسير العمل والصلاحيات
+        run: npm run test:db
+
+      - name: اختبار الإشعارات الآلية
+        run: npm run test:notifications

@@ -1,0 +1,42 @@
+{
+  "name": "hussas-system",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "منظومة برنامج حُفّاظ السُّنة — التسجيل والامتحانات والشهادات",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
+    "functions:deploy": "supabase functions deploy manage-users && supabase functions deploy send-messages --no-verify-jwt",
+    "create-admin": "node --env-file=.env.local scripts/create-admin.mjs",
+    "test:db": "node tests/db.test.mjs",
+    "test:scoring": "node tests/scoring.test.mjs",
+    "test:e2e": "node --env-file=.env.local tests/e2e-api.test.mjs",
+    "test": "npm run test:scoring && npm run test:import && npm run test:messaging && npm run test:db && npm run test:notifications",
+    "import": "node --env-file=.env.local scripts/import-applications.mjs",
+    "test:import": "node tests/import.test.mjs",
+    "test:notifications": "node tests/notifications.test.mjs",
+    "test:messaging": "node tests/messaging.test.mjs",
+    "build:pages": "vite build && node scripts/pages-fallback.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "@tanstack/react-query": "^5.103.1",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "^8.4.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}
