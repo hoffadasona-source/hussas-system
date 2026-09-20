@@ -4,7 +4,7 @@
 //   npm run import -- <ملف.csv> --user <اسم مستخدم إداري> --password <كلمة المرور> [--dry-run] [--cycle "<اسم الدورة>"]
 //
 // - يدخل بحساب إداري حقيقي، فتمر كل الطلبات عبر نفس التحقق وسجل العمليات كالتسجيل اليدوي.
-// - --dry-run: يتحقق من الملف ويطابق المكاتب والمستويات والمتون دون إنشاء أي طلب.
+// - --dry-run: يتحقق من الملف ويطابق المكاتب والمستويات دون إنشاء أي طلب.
 // - يكتب تقريراً بجانب الملف: <الملف>.result.csv فيه نتيجة كل صف ورقم الطلب أو سبب الرفض.
 // - قالب الأعمدة: scripts/import-template.csv
 import fs from 'node:fs';
@@ -50,10 +50,10 @@ if (!isAdmin) {
   process.exit(1);
 }
 
-const [offices, levels, matns, cycles] = await Promise.all(
-  ['offices', 'levels', 'matns', 'cycles'].map((t) => supabase.from(t).select('*')),
+const [offices, levels, cycles] = await Promise.all(
+  ['offices', 'levels', 'cycles'].map((t) => supabase.from(t).select('*')),
 );
-const lookups = { offices: offices.data.filter((x) => x.active), levels: levels.data.filter((x) => x.active), matns: matns.data.filter((x) => x.active) };
+const lookups = { offices: offices.data.filter((x) => x.active), levels: levels.data.filter((x) => x.active) };
 let cycleId;
 if (cycleName) {
   cycleId = cycles.data.find((c) => c.name.trim() === cycleName.trim())?.id;

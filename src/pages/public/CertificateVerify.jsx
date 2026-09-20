@@ -133,7 +133,7 @@ export default function CertificateVerify() {
                   ['رقم الشهادة', <span className="num ltr">{c.cert_no}</span>],
                   ['اسم الطالب', c.student_name],
                   ['الجهة', c.org_name],
-                  ['المتون', (c.matns || []).join(' · ')],
+                  ['المستوى', c.level || '—'],
                   ['الدرجة', `${fmtScore(c.score)} من 100`],
                   c.grade && ['التقدير', c.grade],
                   ['تاريخ الإصدار', fmtDate(c.issued_at)],

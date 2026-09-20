@@ -2,8 +2,10 @@
 // الاستخدام: npm run create-admin -- <username> <password> "<الاسم الكامل>"
 // يتطلب في .env.local: VITE_SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY (لا تضعه في الواجهة أبداً)
 import { createClient } from '@supabase/supabase-js';
+import { displayUsername, usernameError, usernameToEmail } from '../supabase/functions/_shared/username.js';
 
-const [username, password, ...nameParts] = process.argv.slice(2);
+const [rawUsername, password, ...nameParts] = process.argv.slice(2);
+const username = displayUsername(rawUsername);
 const fullName = nameParts.join(' ').trim();
 const url = process.env.VITE_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -21,9 +23,15 @@ if (password.length < 8) {
   console.error('كلمة المرور 8 أحرف على الأقل');
   process.exit(1);
 }
+const nameError = usernameError(username);
+if (nameError) {
+  console.error(nameError);
+  process.exit(1);
+}
 
 const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
-const email = `${username.toLowerCase()}@${domain}`;
+// يقبل اسم المستخدم بالعربية، ويولّد له البريد الداخلي نفسه الذي تستعمله الواجهة عند الدخول
+const email = await usernameToEmail(username, domain);
 
 const { data, error } = await supabase.auth.admin.createUser({
   email, password, email_confirm: true, user_metadata: { username, full_name: fullName },
@@ -34,7 +42,7 @@ if (error) {
 }
 
 const { error: profileError } = await supabase.from('profiles').insert({
-  id: data.user.id, username: username.toLowerCase(), full_name: fullName, role: 'super_admin',
+  id: data.user.id, username, full_name: fullName, role: 'super_admin',
 });
 if (profileError) {
   await supabase.auth.admin.deleteUser(data.user.id);

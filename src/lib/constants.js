@@ -58,6 +58,7 @@ export const AGGREGATES = { avg: 'متوسط الأسئلة', min: 'أقل در�
 
 export const MESSAGE_STATUS = {
   queued: { t: 'بالانتظار', c: 'warn' },
+  exported: { t: 'مُصدّرة', c: 'teal' },
   sending: { t: 'جارٍ الإرسال', c: 'teal' },
   sent: { t: 'أُرسلت', c: 'ok' },
   failed: { t: 'فشل', c: 'err' },
@@ -69,7 +70,7 @@ export const CHANNELS = { whatsapp: 'واتساب', sms: 'رسالة نصية SM
 // المتغيرات المتاحة في قوالب الرسائل (تُملأ في public.message_params)
 export const TEMPLATE_VARS = {
   student_name: 'اسم الطالب', first_name: 'الاسم الأول', reg_no: 'رقم الطلب', student_no: 'رقم الطالب',
-  matns: 'المتون', cycle: 'الدورة', office: 'المكتب', examiner: 'المحفّظ', org_name: 'اسم الجهة', org_phone: 'هاتف الجهة',
+  level: 'المستوى', cycle: 'الدورة', office: 'المكتب', examiner: 'المحفّظ', org_name: 'اسم الجهة', org_phone: 'هاتف الجهة',
   date: 'تاريخ الموعد', time: 'وقت الموعد', place: 'مكان الجلسة', location: 'رابط الغرفة', appointment_notes: 'ملاحظات الموعد',
   rejection_reason: 'سبب الرفض', score: 'الدرجة', grade: 'التقدير', cert_no: 'رقم الشهادة',
   track_link: 'رابط متابعة الطلب', result_link: 'رابط النتيجة', verify_link: 'رابط التحقق من الشهادة',
@@ -96,6 +97,8 @@ export const AUDIT_ACTIONS = {
   'certificate.issue': 'إصدار شهادة',
   'certificate.revoke': 'إلغاء شهادة',
   'messages.test': 'رسالة تجريبية',
+  'messages.export': 'تصدير رسائل للإرسال المحلي',
+  'offices.import': 'استيراد المكاتب',
   'user.create': 'إنشاء حساب',
   'user.update': 'تعديل صلاحيات حساب',
   'user.reset_password': 'إعادة تعيين كلمة المرور',

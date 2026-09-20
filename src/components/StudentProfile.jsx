@@ -139,7 +139,6 @@ export default function StudentProfile({ studentId, onClose }) {
                   latest && ['المحفّظ', latest.examiner_name || 'غير محال'],
                   latest && ['المستوى', latest.level_name],
                   latest && ['مقدار الحفظ', `${latest.memorized_amount}${latest.verses_range ? ` (${latest.verses_range})` : ''}`],
-                  latest && ['المتون', latest.matn_names.join(' · ')],
                   latest?.teacher_name && ['محفّظ الحلقة', latest.teacher_name],
                   latest?.student_notes && ['ملاحظات الطالب', latest.student_notes],
                   latest?.assignment_note && ['ملاحظة التحويل', latest.assignment_note],

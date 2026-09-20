@@ -121,7 +121,7 @@ export function AppointmentModal({ application, appointment, onClose, onSaved })
     onClose();
     if (form.sendWhatsapp) {
       onSaved?.({
-        id, full_name: application.full_name, whatsapp: application.whatsapp, matn_names: application.matn_names,
+        id, full_name: application.full_name, whatsapp: application.whatsapp, level_name: application.level_name,
         exam_date: form.date, exam_time: form.time, mode: form.mode, location: form.location, notes: form.notes,
         examiner_name: application.examiner_name,
       });
@@ -134,7 +134,7 @@ export function AppointmentModal({ application, appointment, onClose, onSaved })
         <button className="btn teal" onClick={save} disabled={busy}>{busy && <span className="spinner" />} {form.sendWhatsapp ? 'حفظ وإرسال على واتساب' : 'حفظ الموعد'}</button>
         <button className="btn ghost" onClick={onClose}>إلغاء</button>
       </>}>
-      <p className="muted small" style={{ marginTop: 0 }}>الطالب: <b>{application.full_name}</b> — {(application.matn_names || []).join(' · ')}</p>
+      <p className="muted small" style={{ marginTop: 0 }}>الطالب: <b>{application.full_name}</b>{application.level_name ? ` — ${application.level_name}` : ''}</p>
       <div className="f2">
         <Field label="التاريخ" required error={errors.date}><input className="inp" type="date" min={appointment ? undefined : todayISO()} value={form.date} onChange={set('date')} /></Field>
         <Field label="الوقت" required error={errors.time}><input className="inp" type="time" value={form.time} onChange={set('time')} /></Field>
@@ -156,7 +156,7 @@ export function WhatsAppModal({ appointment, onClose }) {
   const [text, setText] = useState(() => appointmentMessage({
     orgName: settings?.org_name || 'برنامج حُفّاظ السُّنة',
     studentName: appointment.full_name,
-    matns: appointment.matn_names,
+    level: appointment.level_name,
     date: appointment.exam_date,
     time: appointment.exam_time,
     mode: appointment.mode,

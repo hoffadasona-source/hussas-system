@@ -5,9 +5,9 @@ import { useUi } from '../context/UiContext';
 import { rpc, supabase } from '../lib/supabase';
 import { errorMessage } from '../lib/helpers';
 
-/** تغيير كلمة المرور. forced: عند الدخول بكلمة مؤقتة، ولا يمكن إغلاقها قبل التغيير. */
-export default function ChangePassword({ forced = false, onClose }) {
-  const { reloadProfile, signOut } = useAuth();
+/** تغيير كلمة المرور اختيارياً من لوحة التحكم. */
+export default function ChangePassword({ onClose }) {
+  const { reloadProfile } = useAuth();
   const { toast } = useUi();
   const [f, setF] = useState({ password: '', confirm: '' });
   const [error, setError] = useState('');
@@ -37,20 +37,13 @@ export default function ChangePassword({ forced = false, onClose }) {
 
   return (
     <Modal
-      title={forced ? 'عيّن كلمة مرور جديدة' : 'تغيير كلمة المرور'}
-      onClose={forced ? undefined : onClose}
+      title="تغيير كلمة المرور"
+      onClose={onClose}
       footer={<>
         <button className="btn teal" onClick={save} disabled={busy}>{busy && <span className="spinner" />} حفظ كلمة المرور</button>
-        {forced
-          ? <button className="btn ghost" onClick={signOut}>تسجيل الخروج</button>
-          : <button className="btn ghost" onClick={onClose}>إلغاء</button>}
+        <button className="btn ghost" onClick={onClose}>إلغاء</button>
       </>}
     >
-      {forced && (
-        <p className="muted" style={{ marginTop: 0 }}>
-          دخلت بكلمة مرور مؤقتة أنشأتها الإدارة. عيّن كلمة مرور خاصة بك للمتابعة، ولا تشاركها مع أحد.
-        </p>
-      )}
       {error && <div className="alert err mb" role="alert">{error}</div>}
       <form onSubmit={(e) => { e.preventDefault(); save(); }}>
         <Field label="كلمة المرور الجديدة" required hint="8 أحرف على الأقل، حروف وأرقام.">

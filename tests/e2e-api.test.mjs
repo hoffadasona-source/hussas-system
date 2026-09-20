@@ -3,6 +3,7 @@
 // التشغيل: npm run test:e2e
 // تنبيه: ينشئ حسابات وبيانات اختبارية بأسماء فريدة؛ لا تشغّله على قاعدة الإنتاج.
 import { createClient } from '@supabase/supabase-js';
+import { usernameToEmail } from '../supabase/functions/_shared/username.js';
 
 const URL_ = process.env.VITE_SUPABASE_URL;
 const ANON = process.env.VITE_SUPABASE_ANON_KEY;
@@ -35,7 +36,7 @@ const blocked = async (label, promise) => {
 
 async function signIn(username, password) {
   const client = createClient(URL_, ANON, opts);
-  const { error } = await client.auth.signInWithPassword({ email: `${username}@${DOMAIN}`, password });
+  const { error } = await client.auth.signInWithPassword({ email: await usernameToEmail(username, DOMAIN), password });
   if (error) throw new Error(`دخول ${username}: ${error.message}`);
   return client;
 }
@@ -65,7 +66,6 @@ ok(!!signUp.error, 'التسجيل الذاتي معطّل في Auth', signUp.er
 const lookups = {
   office: must(await anon.from('offices').select('id').order('sort_order').limit(1).single(), 'office').id,
   level: must(await anon.from('levels').select('id').order('sort_order').limit(1).single(), 'level').id,
-  matns: must(await anon.from('matns').select('id').order('sort_order').limit(2), 'matns').map((m) => m.id),
 };
 
 console.log('\n— إدارة الحسابات عبر Edge Function');
@@ -96,7 +96,7 @@ const payload = {
   first_name: 'عمر', father_name: 'سالم', grandfather_name: 'علي', family_name: 'الاختبار', birth_date: '2006-05-10',
   gender: 'male', national_id: nid, residence: 'طرابلس', phone: '0912345678', whatsapp: '+218912345678', email: '',
   section: 'men', circle_name: 'حلقة الاختبار', center_name: 'مركز الاختبار', office_id: lookups.office,
-  level_id: lookups.level, memorized_amount: 'المتن كاملاً', matn_ids: lookups.matns,
+  level_id: lookups.level, memorized_amount: 'المستوى كاملاً',
 };
 const receipt = must(await anon.rpc('submit_application', { p: payload }), 'submit_application');
 ok(/^REG-\d{4}-\d{5}$/.test(receipt.reg_no), 'تسجيل طالب من الموقع العام', `${receipt.reg_no} / ${receipt.student_no}`);
@@ -109,7 +109,7 @@ ok(tracked.status === 'pending', 'متابعة الطلب', tracked.student_name
 
 console.log('\n— الإدارة');
 const app = must(await clerkC.from('v_applications').select('*').eq('reg_no', receipt.reg_no).single(), 'v_applications');
-ok(app.matn_names.length === 2, 'الإداري يرى الطلب بمتونه');
+ok(!!app.level_name, 'الإداري يرى الطلب بمستواه: ' + app.level_name);
 const exm1Id = must(await clerkC.from('examiners').select('id').eq('employee_no', `E1-${run}`).single(), 'examiner id').id;
 await blocked('المحفّظ يقبل الطلب', exm1C.rpc('approve_application', { p_application_id: app.id }));
 must(await clerkC.rpc('approve_application', { p_application_id: app.id }), 'approve');
@@ -138,7 +138,7 @@ ok(!!hack.error, 'المحفّظ لا يكتب الدرجة مباشرة', hack.
 const other = await exm2C.from('exam_questions').update({ deductions: {} }).eq('exam_id', examId).select();
 ok(!other.error && other.data.length === 0, 'المحفّظ الآخر لا يعدّل الأسئلة');
 const score = must(await exm1C.rpc('submit_exam', { p_exam_id: examId }), 'submit_exam');
-ok(Number(score) === 96, 'احتساب الدرجة على الخادم (90، 98، 100 ← 96)', String(score));
+ok(Number(score) === 96.33, 'احتساب الدرجة على الخادم بمقياس الدليل (18.2، 19.6، 20 من 20 ← 96.33%)', String(score));
 const pending = must(await anon.rpc('lookup_result', { p_query: nid }), 'lookup pending');
 ok(pending.state === 'pending', 'النتيجة مخفية قبل الاعتماد');
 
@@ -147,7 +147,7 @@ must(await clerkC.rpc('approve_exam', { p_exam_id: examId, p_notes: 'اختبا�
 const certNo = must(await clerkC.rpc('issue_certificate', { p_exam_id: examId }), 'issue_certificate');
 ok(/^CERT-/.test(certNo), 'إصدار الشهادة', certNo);
 const result = must(await anon.rpc('lookup_result', { p_query: receipt.student_no }), 'lookup');
-ok(result.state === 'published' && Number(result.score) === 96 && result.certificate?.cert_no === certNo, 'الاستعلام عن النتيجة المعتمدة');
+ok(result.state === 'published' && Number(result.score) === 96.33 && result.certificate?.cert_no === certNo, 'الاستعلام عن النتيجة المعتمدة');
 const verified = must(await anon.rpc('verify_certificate', { p_cert_no: certNo }), 'verify');
 ok(verified.status === 'valid', 'التحقق من الشهادة');
 const report = must(await clerkC.rpc('report_summary', { p_cycle_id: null, p_office_id: null, p_from: null, p_to: null }), 'report');
@@ -160,16 +160,33 @@ console.log('\n— كلمات المرور وإيقاف الحسابات');
 const exm2Profile = must(await superC.from('profiles').select('id').eq('username', `e2e_exm2_${run}`).single(), 'profile id');
 const reset = await invokeUsers(clerkC, { action: 'reset_password', user_id: exm2Profile.id });
 ok(!reset.error && reset.data.password, 'الإداري يعيد تعيين كلمة مرور محفّظ', reset.error || '');
-const oldLogin = await createClient(URL_, ANON, opts).auth.signInWithPassword({ email: `e2e_exm2_${run}@${DOMAIN}`, password: 'Examiner-Two-2' });
+const oldLogin = await createClient(URL_, ANON, opts).auth.signInWithPassword({ email: await usernameToEmail(`e2e_exm2_${run}`, DOMAIN), password: 'Examiner-Two-2' });
 ok(!!oldLogin.error, 'كلمة المرور القديمة لم تعد تعمل');
 await signIn(`e2e_exm2_${run}`, reset.data.password);
 ok(true, 'الدخول بكلمة المرور المؤقتة');
 const deact = await invokeUsers(superC, { action: 'set_status', user_id: exm2Profile.id, status: 'inactive' });
 ok(!deact.error, 'إيقاف الحساب', deact.error || '');
-const bannedLogin = await createClient(URL_, ANON, opts).auth.signInWithPassword({ email: `e2e_exm2_${run}@${DOMAIN}`, password: reset.data.password });
+const bannedLogin = await createClient(URL_, ANON, opts).auth.signInWithPassword({ email: await usernameToEmail(`e2e_exm2_${run}`, DOMAIN), password: reset.data.password });
 ok(!!bannedLogin.error, 'الحساب الموقوف لا يدخل', bannedLogin.error?.message);
 const clerkReset = await invokeUsers(clerkC, { action: 'reset_password', user_id: (await superC.from('profiles').select('id').eq('username', superName).single()).data.id });
 ok(!!clerkReset.error, 'الإداري لا يعيد تعيين كلمة مرور مدير النظام', clerkReset.error);
+
+console.log('\n— اسم مستخدم عربي بلا إجبار تغيير كلمة المرور');
+const arabicName = `عبدالرحيم أحمد شيتة ${run}`;
+const arabicPass = 'Hussas-2026-Pass';
+const created = await invokeUsers(superC, {
+  action: 'create_user', role: 'examiner', username: arabicName, full_name: 'عبدالرحيم أحمد شيتة',
+  password: arabicPass, examiner: { office_id: lookups.office, employee_no: `E3-${run}` },
+});
+ok(!created.error, 'إنشاء حساب باسم مستخدم عربي', created.error || '');
+const arabicClient = await signIn(arabicName, arabicPass);
+ok(true, 'الدخول بالاسم العربي وكلمة المرور التي وضعها الإداري');
+const arabicProfile = must(await arabicClient.from('profiles').select('username, must_change_password').eq('username', arabicName).single(), 'arabic profile');
+ok(arabicProfile.must_change_password === false, 'لا إجبار على تغيير كلمة المرور عند أول دخول');
+// كتابة الاسم بهمزات وتاء مربوطة مختلفة تؤدي إلى البريد نفسه
+const loose = arabicName.replace('أحمد', 'احمد').replace('شيتة', 'شيته');
+await signIn(loose, arabicPass);
+ok(true, `الدخول يتساهل مع اختلاف الهمزات والتاء المربوطة: ${loose}`);
 
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
 process.exit(failures ? 1 : 0);

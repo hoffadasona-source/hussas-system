@@ -6,6 +6,7 @@ import { Icon } from '../../components/icons';
 import { Empty, Loading } from '../../components/ui';
 import { useSettings } from '../../hooks/data';
 import { supabase } from '../../lib/supabase';
+import { mergeLayout } from '../../lib/certificate';
 
 export default function CertificatePrint() {
   const { certNo } = useParams();
@@ -26,11 +27,17 @@ export default function CertificatePrint() {
   if (isLoading || !settings) return <Loading />;
   if (!cert) return <div className="print-page"><div className="card"><Empty title="الشهادة غير موجودة" /></div></div>;
 
+  // مقاس الورقة عند الطباعة = مقاس القالب المرفوع، وإلا A4 أفقي
+  const page = settings.cert_bg_pdf_url ? mergeLayout(settings.cert_layout_config).page : null;
+
   return (
     <div className="print-page">
+      {page && <style>{`@page cert { size: ${page.w}pt ${page.h}pt; margin: 0 }`}</style>}
       <div className="row no-print" style={{ justifyContent: 'center', marginBottom: 16 }}>
         <button className="btn teal" onClick={() => window.print()}><Icon.print /> طباعة / حفظ PDF</button>
-        <span className="small muted">اختر «حفظ بتنسيق PDF» والاتجاه الأفقي من نافذة الطباعة.</span>
+        <span className="small muted">
+          {page ? 'اختر «حفظ بتنسيق PDF» وألغِ الهوامش لتطابق القالب المرفوع.' : 'اختر «حفظ بتنسيق PDF» والاتجاه الأفقي من نافذة الطباعة.'}
+        </span>
       </div>
       <CertificateView cert={cert} settings={settings} />
     </div>

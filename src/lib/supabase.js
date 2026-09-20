@@ -1,4 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import { usernameToEmail as toEmail } from '../../supabase/functions/_shared/username.js';
+
+export { displayUsername, normalizeUsername, usernameError } from '../../supabase/functions/_shared/username.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -11,11 +14,9 @@ export const supabase = createClient(url || 'http://localhost:54321', anonKey ||
 
 const EMAIL_DOMAIN = import.meta.env.VITE_USERNAME_EMAIL_DOMAIN || 'users.hussas.local';
 
-// الدخول باسم المستخدم: يُحوَّل إلى بريد داخلي، أو يُقبل البريد كما هو
-export const usernameToEmail = (value) => {
-  const v = String(value || '').trim().toLowerCase();
-  return v.includes('@') ? v : `${v}@${EMAIL_DOMAIN}`;
-};
+// الدخول باسم المستخدم (عربي أو لاتيني): يُحوَّل إلى بريد داخلي ثابت، أو يُقبل البريد كما هو.
+// المنطق مشترك حرفياً مع دالة manage-users حتى يتطابق البريد المولَّد عند الإنشاء والدخول.
+export const usernameToEmail = (value) => toEmail(value, EMAIL_DOMAIN);
 
 /** يستدعي إجراء RPC ويرمي الخطأ إن وجد */
 export async function rpc(fn, args) {

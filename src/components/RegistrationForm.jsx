@@ -13,7 +13,7 @@ const STEPS = ['البيانات الشخصية', 'بيانات الاتصال',
 const EMPTY = {
   first_name: '', father_name: '', grandfather_name: '', family_name: '', birth_date: '', national_id: '',
   gender: 'male', residence: '', phone: '', whatsapp: '', email: '', section: 'men', circle_name: '',
-  center_name: '', office_id: '', teacher_name: '', level_id: '', matn_ids: [], memorized_amount: '',
+  center_name: '', office_id: '', teacher_name: '', level_id: '', memorized_amount: '',
   verses_range: '', student_notes: '',
 };
 
@@ -32,7 +32,6 @@ function validate(step, f) {
   }
   if (step === 2) {
     ['circle_name', 'center_name', 'office_id', 'level_id', 'memorized_amount'].forEach(req);
-    if (!f.matn_ids.length) e.matn_ids = 'اختر متناً واحداً على الأقل.';
   }
   return e;
 }
@@ -51,7 +50,6 @@ export default function RegistrationForm({ mode = 'public', onCreated }) {
 
   const offices = useMemo(() => (lookups?.offices || []).filter((o) => o.active), [lookups]);
   const levels = useMemo(() => (lookups?.levels || []).filter((o) => o.active), [lookups]);
-  const matns = useMemo(() => (lookups?.matns || []).filter((o) => o.active), [lookups]);
 
   if (isLoading) return <Loading />;
   if (lookupsError) return <div className="card-b"><ErrorBox error={errorMessage(lookupsError)} /></div>;
@@ -63,9 +61,6 @@ export default function RegistrationForm({ mode = 'public', onCreated }) {
     setForm((f) => ({ ...f, [k]: v?.target ? v.target.value : v }));
     if (errors[k]) setErrors((e) => ({ ...e, [k]: undefined }));
   };
-  const toggleMatn = (id) =>
-    set('matn_ids')(form.matn_ids.includes(id) ? form.matn_ids.filter((x) => x !== id) : [...form.matn_ids, id]);
-
   const next = () => {
     const e = validate(step, form);
     setErrors(e);
@@ -209,19 +204,7 @@ export default function RegistrationForm({ mode = 'public', onCreated }) {
             <Field label="المستوى" required error={errors.level_id}>
               <Select value={form.level_id} onChange={set('level_id')} placeholder="اختر المستوى" options={levels.map((o) => ({ value: o.id, label: o.name }))} />
             </Field>
-            <div className={`f full ${errors.matn_ids ? 'invalid' : ''}`} style={{ marginBottom: 14 }}>
-              <span className="small muted" style={{ display: 'block', marginBottom: 8 }}>المتون المطلوب امتحانها <b style={{ color: 'var(--red)', fontWeight: 400 }}>*</b></span>
-              <div className="chips" role="group" aria-label="المتون">
-                {matns.map((m) => (
-                  <label key={m.id} className={`chip-opt ${form.matn_ids.includes(m.id) ? 'on' : ''}`}>
-                    <input type="checkbox" checked={form.matn_ids.includes(m.id)} onChange={() => toggleMatn(m.id)} />
-                    {form.matn_ids.includes(m.id) ? '✓ ' : ''}{m.name}
-                  </label>
-                ))}
-              </div>
-              {errors.matn_ids ? <div className="err-msg" style={{ display: 'block' }}>{errors.matn_ids}</div> : <div className="hint">اختر متناً واحداً أو أكثر.</div>}
-            </div>
-            <Field label="مقدار الحفظ" required error={errors.memorized_amount}><input className="inp" placeholder="مثال: المتن كاملاً" value={form.memorized_amount} onChange={set('memorized_amount')} /></Field>
+            <Field label="مقدار الحفظ" required error={errors.memorized_amount} hint="ما أتمّه الطالب في هذا المستوى."><input className="inp" placeholder="مثال: المستوى كاملاً" value={form.memorized_amount} onChange={set('memorized_amount')} /></Field>
             <Field label="الأبيات / المواضع"><input className="inp" placeholder="مثال: من البيت 1 إلى 60" value={form.verses_range} onChange={set('verses_range')} /></Field>
             <Field label="ملاحظات الطالب" className="full"><textarea className="inp" placeholder="أي ملاحظة تودّ إضافتها" value={form.student_notes} onChange={set('student_notes')} /></Field>
           </div>
@@ -241,7 +224,6 @@ export default function RegistrationForm({ mode = 'public', onCreated }) {
               ['الحلقة والمركز', `${form.circle_name} — ${form.center_name}`],
               ['المكتب', name(form.office_id, offices)],
               ['المستوى ومقدار الحفظ', `${name(form.level_id, levels)} — ${form.memorized_amount}`],
-              ['المتون', form.matn_ids.map((id) => name(id, matns)).join(' · ')],
               form.verses_range && ['الأبيات / المواضع', form.verses_range],
               ['الدورة', cycle?.name],
             ]} />

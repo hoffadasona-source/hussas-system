@@ -9,15 +9,19 @@ import { useUi } from '../../context/UiContext';
 import { usePagedList, useSettings } from '../../hooks/data';
 import { rpc, sendMessages, supabase } from '../../lib/supabase';
 import { CHANNELS, MESSAGE_STATUS } from '../../lib/constants';
-import { fmtDateTime } from '../../lib/format';
+import { downloadCsv, errorMessage, waNumber } from '../../lib/helpers';
+import { fmtDateTime, todayISO } from '../../lib/format';
+
+const EXPORT_LIMIT = 2000;
 
 export default function Messages() {
   const run = useAction();
-  const { toast } = useUi();
+  const { toast, confirm } = useUi();
   const { data: settings } = useSettings();
   const [status, setStatus] = useState('');
   const [template, setTemplate] = useState('');
   const [open, setOpen] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const templates = useQuery({
     queryKey: ['message-templates'],
@@ -29,12 +33,13 @@ export default function Messages() {
     queryFn: async () => {
       const since = new Date(Date.now() - 86400e3).toISOString();
       const count = (build) => build(supabase.from('outbound_messages').select('id', { count: 'exact', head: true })).then((r) => r.count);
-      const [queued, sent, failed] = await Promise.all([
+      const [queued, exported, sent, failed] = await Promise.all([
         count((q) => q.eq('status', 'queued').lte('send_after', new Date().toISOString())),
+        count((q) => q.eq('status', 'exported')),
         count((q) => q.eq('status', 'sent').gte('sent_at', since)),
         count((q) => q.eq('status', 'failed')),
       ]);
-      return { queued, sent, failed };
+      return { queued, exported, sent, failed };
     },
   });
 
@@ -44,6 +49,45 @@ export default function Messages() {
     searchCols: ['recipient', 'recipient_name', 'reg_no'],
     filters: { status, template_key: template },
   });
+
+  // التصدير للإرسال المحلي: رقم الهاتف ونص الرسالة، ثم تُعلَّم الرسائل كمُصدّرة
+  const exportPending = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase.from('v_outbound_messages')
+        .select('id, recipient, recipient_name, reg_no, body, template_title, channel, send_after')
+        .eq('status', 'queued').lte('send_after', new Date().toISOString())
+        .order('send_after').limit(EXPORT_LIMIT);
+      if (error) throw error;
+      if (!data.length) {
+        toast('لا توجد رسائل معلقة للتصدير', 'info');
+        return;
+      }
+      downloadCsv(`رسائل-للإرسال-${todayISO()}`, [
+        { label: 'رقم الهاتف', value: (m) => waNumber(m.recipient) },
+        { label: 'نص الرسالة', value: (m) => m.body },
+        { label: 'الاسم', value: (m) => m.recipient_name },
+        { label: 'رقم الطلب', value: (m) => m.reg_no },
+        { label: 'نوع الرسالة', value: (m) => m.template_title },
+      ], data);
+
+      const mark = await confirm({
+        title: 'تعليم الرسائل كمُصدّرة',
+        text: `نُزّلت ${data.length} رسالة. هل تُعلَّم كمُصدّرة حتى لا تتكرر في التصدير القادم؟`,
+        okLabel: 'تعليمها كمُصدّرة',
+      });
+      if (mark) await run(() => rpc('export_messages', { p_ids: data.map((m) => m.id), p_status: 'exported' }), 'عُلّمت الرسائل كمُصدّرة');
+    } catch (err) {
+      toast(errorMessage(err), 'err');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const markSent = async (m) => {
+    const ok = await confirm({ title: 'تعليم كمُرسلة', text: `تأكيد إرسال الرسالة إلى ${m.recipient_name || m.recipient} يدوياً؟`, okLabel: 'تم الإرسال' });
+    if (ok) run(() => rpc('export_messages', { p_ids: [m.id], p_status: 'sent' }), 'عُلّمت الرسالة كمُرسلة');
+  };
 
   const runNow = async () => {
     const res = await run(() => sendMessages('run'));
@@ -55,13 +99,21 @@ export default function Messages() {
       <PageHeader title="الرسائل" sub="الإشعارات الآلية المرسلة للطلبة وحالة كل رسالة."
         actions={<>
           <Link className="btn ghost" to="/admin/settings">إعدادات الإشعارات</Link>
+          <button className="btn ghost" onClick={exportPending} disabled={exporting}>
+            {exporting ? <span className="spinner" /> : <Icon.download />} تصدير Excel/CSV
+          </button>
           <button className="btn" onClick={runNow}><Icon.whatsapp /> تشغيل الإرسال الآن</button>
         </>} />
       {settings && !settings.notify_enabled && (
         <div className="alert warn mb">الإشعارات الآلية معطّلة؛ لا تُضاف رسائل جديدة. فعّلها من الإعدادات ← الإشعارات.</div>
       )}
+      <div className="alert mb small">
+        للإرسال المحلي: اضغط «تصدير Excel/CSV» لتنزيل ملف بأعمدة (رقم الهاتف · نص الرسالة) للرسائل المعلقة،
+        أرسلها من برنامجك المحلي، ثم علّمها كمُصدّرة أو مُرسلة. الأرقام بصيغة دولية بلا علامة +.
+      </div>
       <div className="stats mb" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))' }}>
         <Stat label="مستحقة بالانتظار" value={counts.data?.queued} tone="g" />
+        <Stat label="مُصدّرة للإرسال المحلي" value={counts.data?.exported} tone="t" />
         <Stat label="أُرسلت خلال 24 ساعة" value={counts.data?.sent} tone="t" />
         <Stat label="فشلت" value={counts.data?.failed} tone="r" />
       </div>
@@ -102,8 +154,11 @@ export default function Messages() {
             label: '',
             render: (m) => (
               <div className="acts">
-                {['failed', 'cancelled'].includes(m.status) && (
+                {['failed', 'cancelled', 'exported'].includes(m.status) && (
                   <button className="btn ghost sm" onClick={stop(() => run(() => rpc('retry_message', { p_id: m.id }), 'أُعيدت الرسالة إلى الطابور'))}>إعادة الإرسال</button>
+                )}
+                {['queued', 'exported'].includes(m.status) && (
+                  <button className="btn ghost sm" onClick={stop(() => markSent(m))}>تم الإرسال</button>
                 )}
                 {m.status === 'queued' && (
                   <button className="btn ghost sm" onClick={stop(() => run(() => rpc('cancel_message', { p_id: m.id }), 'أُلغيت الرسالة'))}>إلغاء</button>

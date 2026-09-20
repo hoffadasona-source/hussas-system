@@ -38,14 +38,14 @@ export function waNumber(phone) {
   return digits;
 }
 
-export function appointmentMessage({ orgName, studentName, matns, date, time, mode, location, notes }) {
+export function appointmentMessage({ orgName, studentName, level, date, time, mode, location, notes }) {
   return [
     'السلام عليكم ورحمة الله وبركاته',
     '',
     `${orgName} — إشعار موعد الامتحان.`,
     '',
     `اسم الطالب: ${studentName}`,
-    `المتون: ${(matns || []).join(' - ')}`,
+    level ? `المستوى: ${level}` : null,
     `تاريخ الامتحان: ${fmtDate(date)}`,
     `الوقت: ${fmtTime(time)}`,
     `مكان الجلسة: ${APPOINTMENT_MODES[mode] || mode}${location ? ` — ${location}` : ''}`,

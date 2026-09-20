@@ -90,7 +90,7 @@ export default function ResultLookup() {
                 </div>
 
                 <h4 className="kufi mt" style={{ fontSize: 15 }}>تفاصيل التقييم</h4>
-                <p className="small muted" style={{ margin: '2px 0 10px' }}>المتون: {(r.matns || []).join(' · ')}</p>
+                <p className="small muted" style={{ margin: '2px 0 10px' }}>المستوى: {r.level || '—'}</p>
                 <div className="tbl-wrap cards">
                   <table className="tbl">
                     <thead>

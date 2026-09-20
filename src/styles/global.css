@@ -335,11 +335,20 @@ a.act-card:hover{border-color:var(--teal);transform:translateY(-2px)}
 .cert .nm{font-family:"Thmanyah Serif";font-size:26px;color:var(--blue);margin:14px 0;font-weight:700}
 .cert .cert-foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:30px;gap:20px}
 .cert .sig{border-top:1px solid #CFD3CD;padding-top:6px;min-width:150px;text-align:center}
-.cert .revoked{position:absolute;inset:0;display:grid;place-items:center;z-index:3;pointer-events:none}
-.cert .revoked span{transform:rotate(-18deg);border:4px solid var(--err);color:var(--err);font-size:40px;font-weight:700;padding:4px 26px;border-radius:10px;background:rgba(255,255,255,.8)}
+.cert .revoked,.cert-tpl .revoked{position:absolute;inset:0;display:grid;place-items:center;z-index:3;pointer-events:none}
+.cert .revoked span,.cert-tpl .revoked span{transform:rotate(-18deg);border:4px solid var(--err);color:var(--err);font-size:40px;font-weight:700;padding:4px 26px;border-radius:10px;background:rgba(255,255,255,.8)}
 .qr-box{background:#fff;padding:6px;border:1px solid #E3E5E1;border-radius:6px;line-height:0}
 .print-page{min-height:100vh;background:var(--bg);padding:24px}
 .print-page .cert{max-width:1000px;margin:0 auto;aspect-ratio:1.414/1;display:flex;flex-direction:column;justify-content:center;padding:44px}
+
+/* ---------- قالب الشهادة المرفوع (PDF/صورة) بإحداثيات حرة ---------- */
+.cert-scale{width:100%;max-width:1000px;margin-inline:auto;overflow:hidden}
+.cert-tpl{position:relative;background-size:100% 100%;background-repeat:no-repeat;background-color:#fff;color:#1A211F;box-shadow:var(--sh-1)}
+.cert-fld{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-family:"Thmanyah Serif",serif;line-height:1.25}
+.cert-fld.drag{cursor:grab;touch-action:none;outline:1px dashed rgba(22,50,79,.35);outline-offset:5px;border-radius:3px}
+.cert-fld.drag:active{cursor:grabbing}
+.cert-fld.sel{outline:2px solid var(--teal);background:rgba(30,138,140,.10)}
+.tpl-pick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 
 /* ---------- تسجيل الدخول ---------- */
 .login-wrap{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
@@ -431,7 +440,11 @@ a.act-card:hover{border-color:var(--teal);transform:translateY(-2px)}
   .card{box-shadow:none}
   .print-page{padding:0;background:#fff}
   .print-page .cert{max-width:none;width:100%;height:100vh;aspect-ratio:auto;border-radius:0}
-  .cert{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cert,.cert-tpl{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cert-scale{height:auto!important;max-width:none;overflow:visible}
+  .cert-scale > div{transform:none!important}
+  .cert-tpl{box-shadow:none}
+  .cert-fld.drag{outline:none}
 }
 
 /* =====================================================================

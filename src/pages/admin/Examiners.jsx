@@ -5,7 +5,7 @@ import { Field, Kv, Modal, PageHeader, Select, StatusBadge, mapOptions, rowsOpti
 import { useAction } from '../../components/workflow';
 import { useUi } from '../../context/UiContext';
 import { useLookups, usePagedList } from '../../hooks/data';
-import { manageUsers, supabase } from '../../lib/supabase';
+import { displayUsername, manageUsers, supabase, usernameError } from '../../lib/supabase';
 import { ACCOUNT_STATUS } from '../../lib/constants';
 import { fmtDateTime } from '../../lib/format';
 
@@ -27,8 +27,8 @@ function ExaminerForm({ examiner, onClose }) {
     if (!f.full_name.trim()) e.full_name = 'الاسم مطلوب.';
     if (!f.office_id) e.office_id = 'اختر المكتب.';
     if (isNew || !examiner.user_id) {
-      if (!/^[a-z0-9._-]{3,32}$/.test(f.username.trim().toLowerCase())) e.username = 'أحرف لاتينية صغيرة وأرقام و . _ - (3 أحرف على الأقل).';
-      if (f.password && f.password.length < 8) e.password = '8 أحرف على الأقل، أو اتركه فارغاً لتوليد كلمة مؤقتة.';
+      if (usernameError(f.username)) e.username = usernameError(f.username);
+      if (f.password && f.password.length < 8) e.password = '8 أحرف على الأقل، أو اتركه فارغاً لتوليد كلمة عشوائية.';
     }
     setErrors(e);
     if (Object.keys(e).length) return;
@@ -37,7 +37,7 @@ function ExaminerForm({ examiner, onClose }) {
     let result;
     if (isNew || !examiner.user_id) {
       result = await run(() => manageUsers({
-        action: 'create_user', role: 'examiner', full_name: f.full_name, username: f.username.trim().toLowerCase(),
+        action: 'create_user', role: 'examiner', full_name: f.full_name, username: displayUsername(f.username),
         password: f.password || undefined, examiner: { ...details, id: examiner?.id },
       }), 'أُنشئ حساب المحفّظ');
     } else {
@@ -56,7 +56,7 @@ function ExaminerForm({ examiner, onClose }) {
     return (
       <Modal title="تم إنشاء الحساب" onClose={onClose} footer={<button className="btn teal" onClick={onClose}>تم</button>}>
         <div className="alert ok mb">سلّم بيانات الدخول للمحفّظ بطريقة آمنة. لن تظهر كلمة المرور مرة أخرى.</div>
-        <Kv items={[['اسم المستخدم', <span className="ltr num">{created.username}</span>], ['كلمة المرور المؤقتة', <span className="ltr num">{created.password}</span>]]} />
+        <Kv items={[['اسم المستخدم', <bdi>{created.username}</bdi>], ['كلمة المرور', <span className="ltr num">{created.password}</span>]]} />
       </Modal>
     );
   }
@@ -76,10 +76,10 @@ function ExaminerForm({ examiner, onClose }) {
         </Field>
         <Field label="التخصص" className="full"><input className="inp" placeholder="مثال: صحيح البخاري" value={f.specialization} onChange={set('specialization')} /></Field>
         {(isNew || !examiner.user_id) && <>
-          <Field label="اسم المستخدم" required error={errors.username} hint="يُستخدم للدخول إلى لوحة المحفّظ.">
-            <input className="inp ltr" autoComplete="off" value={f.username} onChange={set('username')} />
+          <Field label="اسم المستخدم" required error={errors.username} hint="للدخول إلى لوحة المحفّظ — يُقبل بالعربية.">
+            <input className="inp" autoComplete="off" placeholder="عبدالرحيم أحمد شيتة" value={f.username} onChange={set('username')} />
           </Field>
-          <Field label="كلمة المرور" error={errors.password} hint="اتركها فارغة لتوليد كلمة مؤقتة.">
+          <Field label="كلمة المرور" error={errors.password} hint="نهائية، ولا يُطلب تغييرها. اتركها فارغة لتوليد كلمة عشوائية.">
             <input className="inp ltr" type="text" autoComplete="new-password" value={f.password} onChange={set('password')} />
           </Field>
         </>}
@@ -108,7 +108,7 @@ export default function Examiners() {
   const resetPassword = async (e) => {
     const ok = await confirm({ title: 'إعادة تعيين كلمة المرور', text: `ستُنشأ كلمة مرور مؤقتة لحساب «${e.full_name}».`, okLabel: 'إعادة التعيين' });
     if (!ok) return;
-    const res = await run(() => manageUsers({ action: 'reset_password', user_id: e.user_id }), 'أُنشئت كلمة مرور مؤقتة');
+    const res = await run(() => manageUsers({ action: 'reset_password', user_id: e.user_id }), 'أُنشئت كلمة مرور جديدة');
     if (res?.password) setTempPass({ name: e.full_name, username: e.username, password: res.password });
   };
 
@@ -158,7 +158,7 @@ export default function Examiners() {
         columns={[
           { label: 'الاسم', render: (r) => r.full_name },
           { label: 'الرقم الوظيفي', className: 'num small', render: (r) => r.employee_no || '—' },
-          { label: 'اسم المستخدم', className: 'num small', render: (r) => (r.username ? <span className="ltr">{r.username}</span> : <span className="muted">بلا حساب</span>) },
+          { label: 'اسم المستخدم', className: 'small', render: (r) => (r.username ? <bdi>{r.username}</bdi> : <span className="muted">بلا حساب</span>) },
           { label: 'الهاتف', className: 'num small', render: (r) => <span className="ltr">{r.phone || '—'}</span> },
           { label: 'المكتب', className: 'small muted', render: (r) => r.office_name || '—' },
           { label: 'التخصص', className: 'small', render: (r) => r.specialization || '—' },
@@ -181,7 +181,7 @@ export default function Examiners() {
       {tempPass && (
         <Modal title="كلمة مرور مؤقتة" onClose={() => setTempPass(null)} footer={<button className="btn teal" onClick={() => setTempPass(null)}>تم</button>}>
           <div className="alert ok mb">سلّمها للمحفّظ «{tempPass.name}» بطريقة آمنة، واطلب منه عدم مشاركتها.</div>
-          <Kv items={[['اسم المستخدم', <span className="ltr num">{tempPass.username}</span>], ['كلمة المرور', <span className="ltr num">{tempPass.password}</span>]]} />
+          <Kv items={[['اسم المستخدم', <bdi>{tempPass.username}</bdi>], ['كلمة المرور', <span className="ltr num">{tempPass.password}</span>]]} />
         </Modal>
       )}
     </>

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 import { Loading } from './components/ui';
 import PublicLayout from './layouts/PublicLayout';
 import DashboardLayout, { RequireRole } from './layouts/DashboardLayout';
@@ -22,8 +22,7 @@ const Assignments = lazy(() => import('./pages/admin/Assignments'));
 const Exams = lazy(() => import('./pages/admin/Exams'));
 const Results = lazy(() => import('./pages/admin/Results'));
 const Certificates = lazy(() => import('./pages/admin/Certificates'));
-const Criteria = lazy(() => import('./pages/admin/Criteria'));
-const Deductions = lazy(() => import('./pages/admin/Deductions'));
+const ArbitrationCriteria = lazy(() => import('./pages/admin/ArbitrationCriteria'));
 const Reports = lazy(() => import('./pages/admin/Reports'));
 const Users = lazy(() => import('./pages/admin/Users'));
 const Settings = lazy(() => import('./pages/admin/Settings'));
@@ -70,8 +69,9 @@ export default function App() {
           <Route path="results" element={<Results key="all" pending={false} />} />
           <Route path="results/pending" element={<Results key="pending" pending />} />
           <Route path="certificates" element={<Certificates />} />
-          <Route path="criteria" element={<Criteria />} />
-          <Route path="deductions" element={<Deductions />} />
+          <Route path="arbitration" element={<ArbitrationCriteria />} />
+          <Route path="criteria" element={<Navigate to="/admin/arbitration" replace />} />
+          <Route path="deductions" element={<Navigate to="/admin/arbitration" replace />} />
           <Route path="reports" element={<Reports />} />
           <Route path="users" element={<Users />} />
           <Route path="settings" element={<Settings />} />

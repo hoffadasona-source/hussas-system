@@ -21,7 +21,7 @@ export function useExamDetails(examId) {
         supabase.from('exam_questions').select('*').eq('exam_id', examId).order('q_index'),
       ]);
       for (const r of [exam, view, questions]) if (r.error) throw r.error;
-      const app = await supabase.from('v_applications').select('matn_names, level_name, memorized_amount, verses_range, whatsapp')
+      const app = await supabase.from('v_applications').select('level_name, memorized_amount, verses_range, whatsapp')
         .eq('id', exam.data.application_id).single();
       return { exam: { ...exam.data, ...view.data }, questions: questions.data, app: app.data || {} };
     },
@@ -109,7 +109,7 @@ export default function ExamReview({ examId, onClose }) {
           {e.return_reason && e.status === 'rejected' && <div className="alert warn mt">سبب الإرجاع: {e.return_reason}</div>}
 
           <h4 className="kufi mt" style={{ fontSize: 14.5 }}>تفاصيل الأسئلة</h4>
-          <p className="small muted" style={{ margin: '2px 0 8px' }}>المتون: {(data.app.matn_names || []).join(' · ')}</p>
+          <p className="small muted" style={{ margin: '2px 0 8px' }}>المستوى: {data.app.level_name || '—'}{data.app.memorized_amount ? ` — ${data.app.memorized_amount}` : ''}</p>
           <div className="tbl-wrap cards">
             <table className="tbl">
               <thead>

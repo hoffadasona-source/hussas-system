@@ -77,6 +77,51 @@ for (const [q, expected, label] of cases) {
   console.log(`  ${js === expected && rows[0].s === expected ? '✓' : '✗'} ${label}`);
 }
 
+console.log('\n— الدليل الاسترشادي للتحكيم: كسور الدرجات 0.25 · 0.50 · 1.00');
+// أساس السؤال 20 · «الصوت والأداء» من 10 بمعامل 0.4 · قيم الخصم كما في الدليل
+const guide = {
+  base: 20,
+  aggregate: 'avg',
+  criteria: [{ id: 'voice', name: 'الصوت والأداء', max_score: 10, default_score: 5, penalty_factor: 0.4 }],
+  deductions: [
+    { id: 'talaathum', name: 'التلعثم', value: 0.25 },
+    { id: 'lahn_khafi', name: 'اللحن الخفي', value: 0.25 },
+    { id: 'taraddud', name: 'التردد', value: 0.5 },
+    { id: 'naqs', name: 'النقص أو الزيادة', value: 0.5 },
+    { id: 'tanbih', name: 'التنبيه', value: 1 },
+    { id: 'fath', name: 'الفتح', value: 1 },
+  ],
+};
+const guideCases = [
+  [{ criteria_scores: {}, deductions: {} }, 18, 'الصوت الافتراضي 5 بلا خصميات = 18 من 20'],
+  [{ criteria_scores: { voice: 10 }, deductions: {} }, 20, 'الدرجة الكاملة = 20'],
+  [{ criteria_scores: { voice: 10 }, deductions: { talaathum: 1 } }, 19.75, 'تلعثم واحد = ربع درجة'],
+  [{ criteria_scores: { voice: 10 }, deductions: { taraddud: 1 } }, 19.5, 'تردد واحد = نصف درجة'],
+  [{ criteria_scores: { voice: 10 }, deductions: { tanbih: 1, fath: 1 } }, 18, 'خطأ مع التنبيه والفتح = درجتان'],
+  [{ criteria_scores: { voice: 10 }, deductions: { talaathum: 3, lahn_khafi: 5, naqs: 2 } }, 17, 'تراكم الكسور: 0.75 + 1.25 + 1 = 3'],
+  [{ criteria_scores: { voice: 8.75 }, deductions: { lahn_khafi: 1 } }, 19.25, 'كسر مئوي في الصوت (8.75) لتفادي التعادل'],
+  [{ criteria_scores: { voice: 7.33 }, deductions: {} }, 18.93, 'كسر مئوي يُقرَّب لمنزلتين (20 − 1.068 = 18.932)'],
+];
+for (const [q, expected, label] of guideCases) {
+  const js = questionScore(guide, q);
+  const { rows } = await db.query('select public.compute_question_score($1::jsonb, $2::jsonb, $3::jsonb)::float8 s',
+    [JSON.stringify(guide), JSON.stringify(q.criteria_scores), JSON.stringify(q.deductions)]);
+  const pass = js === expected && rows[0].s === expected;
+  ok(pass, `${label} (الواجهة ${js} · الخادم ${rows[0].s})`);
+  console.log(`  ${pass ? '✓' : '✗'} ${label}`);
+}
+{
+  const qs = [
+    { criteria_scores: { voice: 8 }, deductions: { tanbih: 1 } },   // 18.2
+    { criteria_scores: { voice: 9 }, deductions: {} },              // 19.6
+    { criteria_scores: { voice: 7 }, deductions: { lahn_khafi: 1 } }, // 18.55
+  ];
+  const js = examScore(guide, qs);
+  const pass = js === 93.92;
+  ok(pass, `النتيجة النهائية بمقياس الدليل = ${js}% (متوسط 18.783… من 20)`);
+  console.log(`  ${pass ? '✓' : '✗'} النتيجة النهائية بمقياس الدليل = ${js}%`);
+}
+
 console.log('\n— النتيجة النهائية');
 const qs = [
   { criteria_scores: { voice: 8 }, deductions: { tanbih: 1 } }, // 90

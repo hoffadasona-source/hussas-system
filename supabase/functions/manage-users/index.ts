@@ -1,6 +1,7 @@
 // إدارة حسابات الدخول (إنشاء، إعادة تعيين كلمة المرور، إيقاف/تفعيل، تعديل الدور).
 // تعمل بمفتاح الخدمة على الخادم فقط؛ لا يصل هذا المفتاح إلى المتصفح أبداً.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { displayUsername, usernameError, usernameToEmail } from '../_shared/username.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -19,7 +20,6 @@ const fail = (message: string, status = 400) => json({ error: message }, status)
 
 type Role = 'super_admin' | 'admin' | 'examiner';
 const ROLES: Role[] = ['super_admin', 'admin', 'examiner'];
-const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
 
 function tempPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
@@ -70,10 +70,12 @@ Deno.serve(async (req) => {
   try {
     switch (body.action) {
       case 'create_user': {
-        const username = String(body.username ?? '').trim().toLowerCase();
+        // اسم المستخدم يُقبل بالعربية كما يكتبه الإداري، ويُولَّد له بريد داخلي صالح لـ Auth
+        const username = displayUsername(body.username);
         const fullName = String(body.full_name ?? '').trim();
         const role = body.role as Role;
-        if (!USERNAME_RE.test(username)) return fail('اسم المستخدم: 3–32 حرفاً لاتينياً صغيراً أو أرقاماً أو . _ -');
+        const nameError = usernameError(username);
+        if (nameError) return fail(nameError);
         if (!fullName) return fail('الاسم مطلوب');
         if (!ROLES.includes(role)) return fail('الدور غير صحيح');
         if (role !== 'examiner' && !isSuper) return fail('إنشاء حسابات الإدارة من صلاحية مدير النظام', 403);
@@ -82,7 +84,7 @@ Deno.serve(async (req) => {
         if (password.length < 8) return fail('كلمة المرور 8 أحرف على الأقل');
 
         const { data: created, error } = await admin.auth.admin.createUser({
-          email: `${username}@${EMAIL_DOMAIN}`,
+          email: await usernameToEmail(username, EMAIL_DOMAIN),
           password,
           email_confirm: true,
           user_metadata: { username, full_name: fullName },
@@ -96,7 +98,7 @@ Deno.serve(async (req) => {
           id: uid, username, full_name: fullName, role,
           can_final_approve: role === 'admin' && !!body.can_final_approve,
           can_issue_certificates: role === 'admin' && !!body.can_issue_certificates,
-          must_change_password: true, // كلمة المرور يحددها غيره، فيُلزم بتغييرها عند أول دخول
+          must_change_password: false, // كلمة المرور التي يضعها الإداري نهائية، ولصاحب الحساب تغييرها متى شاء
         });
         if (profileError) {
           await admin.auth.admin.deleteUser(uid);
@@ -133,7 +135,6 @@ Deno.serve(async (req) => {
         if (password.length < 8) return fail('كلمة المرور 8 أحرف على الأقل');
         const { error } = await admin.auth.admin.updateUserById(target.id, { password });
         if (error) return fail(error.message);
-        await admin.from('profiles').update({ must_change_password: true }).eq('id', target.id);
         await audit('user.reset_password', target.username);
         return json({ password: body.password ? undefined : password });
       }

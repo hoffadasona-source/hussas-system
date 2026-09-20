@@ -6,7 +6,7 @@ import ChangePassword from '../components/ChangePassword';
 import { Icon } from '../components/icons';
 import { Empty, Loading, Modal } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { useCount } from '../hooks/data';
+import { useCount, useSettings } from '../hooks/data';
 import { supabase } from '../lib/supabase';
 import { ROLES } from '../lib/constants';
 import { fmtRelative, initials } from '../lib/format';
@@ -28,8 +28,7 @@ function adminNav(can) {
       ['/admin/certificates', 'الشهادات', Icon.award],
     ]],
     ['الإعداد', [
-      ['/admin/criteria', 'معايير التقييم', Icon.list],
-      ['/admin/deductions', 'الخصميات', Icon.list],
+      ['/admin/arbitration', 'أساس التحكيم', Icon.list],
       ['/admin/reports', 'التقارير', Icon.chart],
       ['/admin/messages', 'الرسائل', Icon.whatsapp, 'failedMessages'],
       can('super') && ['/admin/users', 'المستخدمون والصلاحيات', Icon.users],
@@ -120,6 +119,7 @@ function Notifications({ userId }) {
 
 export default function DashboardLayout({ portal }) {
   const { profile, examiner, can, signOut, user } = useAuth();
+  const { data: settings } = useSettings();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isAdminPortal = portal === 'admin';
@@ -149,7 +149,7 @@ export default function DashboardLayout({ portal }) {
       <div className="shell">
         <aside className="side">
           <div className="side-top">
-            <img src={logoMark} alt="" />
+            <img src={settings?.logo_url || logoMark} alt="" style={{ width: `calc(42px * ${Number(settings?.logo_scale) || 1})` }} />
             <div>
               <div className="t1">حُفّاظ السُّنة</div>
               <div className="t2">{isAdminPortal ? 'لوحة الإدارة' : 'لوحة المحفّظ'}</div>
@@ -212,10 +212,6 @@ export function RequireRole({ roles, loginPath, children }) {
   if (!roles.includes(profile.role)) {
     return <Navigate to={profile.role === 'examiner' ? '/examiner' : '/admin'} replace />;
   }
-  return (
-    <>
-      {children}
-      {profile.must_change_password && <ChangePassword forced />}
-    </>
-  );
+  // كلمة المرور التي يضعها الإداري نهائية: لا إجبار على تغييرها عند أول دخول
+  return children;
 }

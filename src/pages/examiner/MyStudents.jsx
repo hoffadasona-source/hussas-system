@@ -49,7 +49,7 @@ export default function MyStudents() {
           { label: 'رقم الطالب', className: 'num', render: (a) => a.student_no },
           { label: 'الاسم', render: (a) => a.full_name },
           { label: 'المستوى', className: 'small', render: (a) => a.level_name },
-          { label: 'المتون', className: 'small', render: (a) => a.matn_names.join(' · ') },
+          { label: 'المستوى', className: 'small', render: (a) => a.level_name },
           { label: 'مقدار الحفظ', className: 'small', render: (a) => a.memorized_amount },
           { label: 'تاريخ الإحالة', className: 'num small', render: (a) => fmtDate(a.assigned_at) },
           { label: 'الحالة', render: (a) => <StatusBadge map={APP_STATUS} value={a.status} /> },

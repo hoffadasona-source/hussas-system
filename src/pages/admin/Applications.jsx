@@ -53,7 +53,6 @@ export default function Applications() {
           { label: 'المركز', value: (r) => r.center_name },
           { label: 'المكتب', value: (r) => r.office_name },
           { label: 'المستوى', value: (r) => r.level_name },
-          { label: 'المتون', value: (r) => r.matn_names },
           { label: 'مقدار الحفظ', value: (r) => r.memorized_amount },
           { label: 'تاريخ التسجيل', value: (r) => fmtDate(r.created_at) },
           { label: 'الحالة', value: (r) => APP_STATUS[r.status]?.t },

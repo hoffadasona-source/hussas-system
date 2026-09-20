@@ -26,22 +26,20 @@ export function useSettings() {
   });
 }
 
-/** القوائم المرجعية: المكاتب، المستويات، المتون، الدورات */
+/** القوائم المرجعية: المكاتب، المستويات، الدورات */
 export function useLookups() {
   return useQuery({
     queryKey: ['lookups'],
     queryFn: async () => {
-      const [offices, levels, matns, cycles] = await Promise.all([
+      const [offices, levels, cycles] = await Promise.all([
         supabase.from('offices').select('*').order('sort_order').order('name'),
         supabase.from('levels').select('*').order('sort_order').order('name'),
-        supabase.from('matns').select('*').order('sort_order').order('name'),
         supabase.from('cycles').select('*').order('created_at', { ascending: false }),
       ]);
-      for (const r of [offices, levels, matns, cycles]) if (r.error) throw r.error;
+      for (const r of [offices, levels, cycles]) if (r.error) throw r.error;
       return {
         offices: offices.data,
         levels: levels.data,
-        matns: matns.data,
         cycles: cycles.data,
         currentCycle: cycles.data.find((c) => c.is_current) || null,
       };

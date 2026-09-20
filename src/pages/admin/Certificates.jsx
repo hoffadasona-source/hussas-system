@@ -108,7 +108,7 @@ export default function Certificates() {
           { label: 'الطالب', value: (r) => r.student_name },
           { label: 'رقم الطالب', value: (r) => r.student_no },
           { label: 'رقم الامتحان', value: (r) => r.exam_no },
-          { label: 'المتون', value: (r) => r.matn_names },
+          { label: 'المستوى', value: (r) => r.level_name },
           { label: 'الدرجة', value: (r) => r.score },
           { label: 'التقدير', value: (r) => r.grade },
           { label: 'تاريخ الإصدار', value: (r) => fmtDate(r.issued_at) },

@@ -13,7 +13,7 @@ import { appUrl } from '../../lib/format';
 
 const SAMPLE = {
   org_name: 'برنامج حُفّاظ السُّنة', org_phone: '021 000 0000', student_name: 'محمد أحمد عبدالله الشريف', first_name: 'محمد',
-  reg_no: 'REG-2026-00001', student_no: 'STU-2026-00001', matns: 'الأربعون النووية، عمدة الأحكام', cycle: 'دورة ١٤٤٨ هـ',
+  reg_no: 'REG-2026-00001', student_no: 'STU-2026-00001', level: 'المستوى الأول', cycle: 'دورة ١٤٤٨ هـ',
   office: 'مكتب طرابلس المركز', examiner: 'عبدالسلام الفيتوري', date: '2026-09-20', time: '10:00', place: 'غرفة صوتية — واتساب',
   location: 'https://chat.whatsapp.com/…', appointment_notes: '', rejection_reason: 'نقص في بيانات الحلقة', score: '93.5',
   grade: 'ممتاز', cert_no: 'CERT-2026-00001', track_link: '{site}/application-status?q=REG-2026-00001', result_link: '{site}/result',

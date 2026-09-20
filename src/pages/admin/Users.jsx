@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Navigate } from 'react-router';
 import ListCard from '../../components/ListCard';
 import { Icon } from '../../components/icons';
-import { Badge, Field, Kv, Modal, PageHeader, Select, StatusBadge, mapOptions } from '../../components/ui';
+import { Field, Kv, Modal, PageHeader, Select, StatusBadge, mapOptions } from '../../components/ui';
 import { useAction } from '../../components/workflow';
 import { useAuth } from '../../context/AuthContext';
 import { useUi } from '../../context/UiContext';
 import { useLookups, usePagedList } from '../../hooks/data';
-import { manageUsers } from '../../lib/supabase';
+import { displayUsername, manageUsers, usernameError } from '../../lib/supabase';
 import { ACCOUNT_STATUS, ROLES } from '../../lib/constants';
 import { fmtDateTime } from '../../lib/format';
 
@@ -20,7 +20,7 @@ const MATRIX = [
   ['إصدار الشهادات', '✓', 'حسب الصلاحية', '—'],
   ['إلغاء شهادة / إعادة فتح نتيجة معتمدة', '✓', '—', '—'],
   ['إدارة حسابات المحفّظين', '✓', '✓', '—'],
-  ['إدارة المعايير والخصميات والإعدادات', '✓', 'قراءة', '—'],
+  ['إدارة أساس التحكيم والإعدادات', '✓', 'قراءة', '—'],
   ['المستخدمون والصلاحيات', '✓', '—', '—'],
   ['التقارير وسجل العمليات', '✓', '✓', '—'],
 ];
@@ -41,12 +41,12 @@ function UserModal({ user, onClose }) {
 
   const save = async () => {
     if (!f.full_name.trim()) return setErr('الاسم مطلوب.');
-    if (isNew && !/^[a-z0-9._-]{3,32}$/.test(f.username.trim().toLowerCase())) return setErr('اسم المستخدم: أحرف لاتينية صغيرة وأرقام و . _ -');
+    if (isNew && usernameError(f.username)) return setErr(usernameError(f.username));
     if (isNew && f.password && f.password.length < 8) return setErr('كلمة المرور 8 أحرف على الأقل.');
     setBusy(true);
     const res = await run(() => manageUsers(isNew
       ? {
-        action: 'create_user', full_name: f.full_name, username: f.username.trim().toLowerCase(), password: f.password || undefined,
+        action: 'create_user', full_name: f.full_name, username: displayUsername(f.username), password: f.password || undefined,
         role: f.role, can_final_approve: f.can_final_approve, can_issue_certificates: f.can_issue_certificates,
         examiner: f.role === 'examiner' ? { office_id: f.office_id || null, employee_no: f.employee_no || null, phone: f.phone || null } : undefined,
       }
@@ -61,8 +61,8 @@ function UserModal({ user, onClose }) {
   if (created) {
     return (
       <Modal title="تم إنشاء الحساب" onClose={onClose} footer={<button className="btn teal" onClick={onClose}>تم</button>}>
-        <div className="alert ok mb">سلّم بيانات الدخول بطريقة آمنة. لن تظهر كلمة المرور مرة أخرى.</div>
-        <Kv items={[['اسم المستخدم', <span className="ltr num">{created.username}</span>], ['كلمة المرور المؤقتة', <span className="ltr num">{created.password}</span>]]} />
+        <div className="alert ok mb">سلّم بيانات الدخول بطريقة آمنة. لن تظهر كلمة المرور مرة أخرى، ولن يُطلب من صاحب الحساب تغييرها.</div>
+        <Kv items={[['اسم المستخدم', <bdi>{created.username}</bdi>], ['كلمة المرور', <span className="ltr num">{created.password}</span>]]} />
       </Modal>
     );
   }
@@ -77,8 +77,14 @@ function UserModal({ user, onClose }) {
           <Select value={f.role} onChange={set('role')} disabled={!isNew && user.role === 'examiner'}
             options={Object.entries(ROLES).filter(([k]) => isNew || user.role === 'examiner' || k !== 'examiner').map(([value, label]) => ({ value, label }))} />
         </Field>
-        <Field label="اسم المستخدم" required={isNew}><input className="inp ltr" disabled={!isNew} value={f.username} onChange={set('username')} /></Field>
-        {isNew && <Field label="كلمة المرور" hint="اتركها فارغة لتوليد كلمة مؤقتة."><input className="inp ltr" autoComplete="new-password" value={f.password} onChange={set('password')} /></Field>}
+        <Field label="اسم المستخدم" required={isNew} hint={isNew ? 'يُكتب بالعربية أو اللاتينية، مثل: عبدالرحيم أحمد شيتة' : undefined}>
+          <input className="inp" disabled={!isNew} placeholder="عبدالرحيم أحمد شيتة" value={f.username} onChange={set('username')} />
+        </Field>
+        {isNew && (
+          <Field label="كلمة المرور" hint="هي كلمة الدخول النهائية. اتركها فارغة لتوليد كلمة عشوائية.">
+            <input className="inp ltr" autoComplete="new-password" value={f.password} onChange={set('password')} />
+          </Field>
+        )}
         {isNew && f.role === 'examiner' && <>
           <Field label="المكتب">
             <Select value={f.office_id} onChange={set('office_id')} placeholder="اختر المكتب" options={(lookups?.offices || []).map((o) => ({ value: o.id, label: o.name }))} />
@@ -118,8 +124,8 @@ export default function Users() {
   if (!isSuper) return <Navigate to="/admin" replace />;
 
   const reset = async (u) => {
-    if (!(await confirm({ title: 'إعادة تعيين كلمة المرور', text: `ستُنشأ كلمة مرور مؤقتة لحساب «${u.full_name}».`, okLabel: 'إعادة التعيين' }))) return;
-    const res = await run(() => manageUsers({ action: 'reset_password', user_id: u.id }), 'أُنشئت كلمة مرور مؤقتة');
+    if (!(await confirm({ title: 'إعادة تعيين كلمة المرور', text: `ستُنشأ كلمة مرور جديدة نهائية لحساب «${u.full_name}».`, okLabel: 'إعادة التعيين' }))) return;
+    const res = await run(() => manageUsers({ action: 'reset_password', user_id: u.id }), 'أُنشئت كلمة مرور جديدة');
     if (res?.password) setTempPass({ ...u, password: res.password });
   };
   const toggle = async (u) => {
@@ -145,10 +151,10 @@ export default function Users() {
         ]}
         columns={[
           { label: 'الاسم', render: (u) => u.full_name },
-          { label: 'اسم المستخدم', className: 'num small', render: (u) => <span className="ltr">{u.username}</span> },
+          { label: 'اسم المستخدم', className: 'small', render: (u) => <bdi>{u.username}</bdi> },
           { label: 'الدور', render: (u) => ROLES[u.role] },
           { label: 'صلاحيات إضافية', className: 'small muted', render: perms },
-          { label: 'الحالة', render: (u) => <div className="row" style={{ gap: 6 }}><StatusBadge map={ACCOUNT_STATUS} value={u.status} />{u.must_change_password && <Badge kind="warn">كلمة مؤقتة</Badge>}</div> },
+          { label: 'الحالة', render: (u) => <StatusBadge map={ACCOUNT_STATUS} value={u.status} /> },
           { label: 'آخر دخول', className: 'small muted', render: (u) => fmtDateTime(u.last_sign_in_at) },
           {
             label: '',
@@ -173,9 +179,9 @@ export default function Users() {
       </div>
       {editing !== undefined && <UserModal user={editing} onClose={() => setEditing(undefined)} />}
       {tempPass && (
-        <Modal title="كلمة مرور مؤقتة" onClose={() => setTempPass(null)} footer={<button className="btn teal" onClick={() => setTempPass(null)}>تم</button>}>
-          <div className="alert ok mb">سلّمها لصاحب الحساب «{tempPass.full_name}» بطريقة آمنة.</div>
-          <Kv items={[['اسم المستخدم', <span className="ltr num">{tempPass.username}</span>], ['كلمة المرور', <span className="ltr num">{tempPass.password}</span>]]} />
+        <Modal title="كلمة المرور الجديدة" onClose={() => setTempPass(null)} footer={<button className="btn teal" onClick={() => setTempPass(null)}>تم</button>}>
+          <div className="alert ok mb">سلّمها لصاحب الحساب «{tempPass.full_name}» بطريقة آمنة. هي كلمة الدخول النهائية.</div>
+          <Kv items={[['اسم المستخدم', <bdi>{tempPass.username}</bdi>], ['كلمة المرور', <span className="ltr num">{tempPass.password}</span>]]} />
         </Modal>
       )}
     </>

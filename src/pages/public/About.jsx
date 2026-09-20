@@ -17,7 +17,7 @@ const METHOD = [
 
 export default function About() {
   const { data: lookups } = useLookups();
-  const matns = (lookups?.matns || []).filter((m) => m.active);
+  const levels = (lookups?.levels || []).filter((l) => l.active);
 
   return (
     <>
@@ -58,10 +58,10 @@ export default function About() {
           </div>
           <div className="grid split-r mt">
             <div className="card">
-              <div className="card-h"><h3>أبرز المقررات</h3></div>
+              <div className="card-h"><h3>مستويات البرنامج</h3></div>
               <div className="card-b">
-                <div className="row">{matns.map((m) => <span key={m.id} className="badge teal">{m.name}</span>)}</div>
-                <p className="hint mt-s">وتُضاف إليها متون أخرى بحسب المستوى.</p>
+                <div className="row">{levels.map((l) => <span key={l.id} className="badge teal">{l.name}</span>)}</div>
+                <p className="hint mt-s">يتدرّج الطالب في المستويات، ويُمتحن في المستوى المسجَّل فيه.</p>
               </div>
             </div>
             <div className="card">

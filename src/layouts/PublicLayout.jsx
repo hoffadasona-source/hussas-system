@@ -26,12 +26,14 @@ export default function PublicLayout() {
   }, [pathname]);
 
   const org = settings?.org_name || 'برنامج حُفّاظ السُّنة';
+  const logoScale = Number(settings?.logo_scale) || 1;
+  const brandLogo = settings?.logo_url || logoMark;
 
   return (
     <>
       <header className="pub-top" data-open={open}>
         <div className="pub-in">
-          <Link to="/"><img className="lg" src={logoMark} alt={`شعار ${org}`} /></Link>
+          <Link to="/"><img className="lg" src={brandLogo} alt={`شعار ${org}`} style={{ height: `calc(46px * ${logoScale})` }} /></Link>
           <div>
             <div className="kufi" style={{ fontSize: 15.5 }}>{org}</div>
             <div className="tiny muted pub-brand-sub">منظومة التسجيل والامتحانات والشهادات</div>
@@ -61,7 +63,7 @@ export default function PublicLayout() {
       <footer className="foot">
         <div className="foot-in">
           <div>
-            <img src={logoStacked} style={{ width: 150, filter: 'brightness(0) invert(1)', opacity: 0.92 }} alt="" />
+            <img src={settings?.logo_url || logoStacked} style={{ width: 150 * logoScale, maxWidth: '100%', filter: settings?.logo_url ? 'none' : 'brightness(0) invert(1)', opacity: 0.92 }} alt="" />
             <p className="small" style={{ marginTop: 12, maxWidth: '40ch' }}>
               منظومة رسمية لتسجيل طلبة البرنامج وإجراء امتحاناتهم واعتماد نتائجهم وإصدار شهاداتهم.
             </p>

@@ -38,7 +38,8 @@ export function AuthProvider({ children }) {
   }, [userId, loadProfile]);
 
   const signIn = useCallback(async (username, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(username), password });
+    const email = await usernameToEmail(username);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const { data: p } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
     if (!p || p.status !== 'active') {

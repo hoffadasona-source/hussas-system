@@ -31,16 +31,17 @@ await db.exec(`
     ('${SUPER}', 'مدير', 'admin', 'super_admin', false, false),
     ('${CLERK}', 'إداري', 'clerk', 'admin', true, true),
     ('${EXMU}', 'محفّظ', 'exm', 'examiner', false, false);
-  insert into examiners (user_id, full_name, office_id) select '${EXMU}', 'محفّظ', id from offices limit 1;
+  insert into examiners (user_id, full_name, office_id) select '${EXMU}', 'محفّظ', id from offices where active order by sort_order limit 1;
   insert into grade_scales (name, min_score, max_score, is_passing) values ('ممتاز', 90, 100, true), ('جيد جداً', 80, 89.99, true);
 `);
 const exm = (await q1(`select id from examiners limit 1`)).id;
-const lk = await q1(`select (select id from offices order by sort_order limit 1) office, (select id from levels limit 1) level,
-  (select json_agg(id) from (select id from matns order by sort_order limit 2) t) matns`);
+const lk = await q1(`select (select id from offices where active order by sort_order limit 1) office,
+  (select id from levels where active order by sort_order limit 1) level,
+  (select name from levels where active order by sort_order limit 1) level_name`);
 const payload = (nid) => JSON.stringify({
   first_name: 'عمر', father_name: 'سالم', family_name: 'الاختبار', birth_date: '2006-01-01', gender: 'male', national_id: nid,
   residence: 'طرابلس', phone: '0912345678', whatsapp: '0923456789', section: 'men', circle_name: 'حلقة', center_name: 'مركز',
-  office_id: lk.office, level_id: lk.level, memorized_amount: 'كامل', matn_ids: lk.matns,
+  office_id: lk.office, level_id: lk.level, memorized_amount: 'كامل',
 });
 
 console.log('— الإشعارات معطّلة افتراضياً');
@@ -61,8 +62,8 @@ let msgs = await messages(appId);
 ok(msgs.length === 1 && msgs[0].template_key === 'application_received', 'رسالة استلام الطلب');
 ok(msgs[0].body.includes(sub.r.reg_no) && msgs[0].body.includes('الأربعون') === false || msgs[0].body.includes(sub.r.reg_no),
   'النص يتضمن رقم الطلب');
-const matnNames = (await qa(`select name from matns order by sort_order limit 2`)).map((m) => m.name);
-ok(matnNames.every((n) => msgs[0].body.includes(n)), `المتون تظهر في الرسالة رغم إضافتها بعد الطلب (مشغّل مؤجَّل): ${matnNames.join('، ')}`);
+ok(msgs[0].body.includes(lk.level_name), `المستوى يظهر في نص الرسالة: ${lk.level_name}`);
+ok(!/المتون|\{\{matns\}\}/.test(msgs[0].body), 'لا أثر للمتون في قوالب الرسائل');
 ok(msgs[0].body.includes(`https://exams.hussas.ly/application-status?q=${sub.r.reg_no}`), 'رابط المتابعة مبني من رابط الموقع');
 ok(!/\{\{/.test(msgs[0].body), 'لا توجد متغيرات غير مستبدلة');
 const recipient = (await q1(`select recipient from outbound_messages where application_id = $1`, [appId])).recipient;
@@ -144,6 +145,34 @@ ok(result?.body.includes('98') && result.body.includes('ممتاز') && result.b
 const certNo = (await as('authenticated', CLERK, () => q1(`select issue_certificate($1) no`, [examId]))).no;
 const cert = (await messages(appId)).find((m) => m.template_key === 'certificate_issued');
 ok(cert?.body.includes(certNo) && cert.body.includes(`certificate-verification?no=${certNo}`), `رسالة الشهادة برقمها ورابط التحقق (${certNo})`);
+
+console.log('\n— التصدير للإرسال المحلي (Excel/CSV)');
+const due = await qa(`select id, recipient, recipient_name, body from v_outbound_messages
+  where status = 'queued' and send_after <= now() order by send_after`);
+ok(due.length > 0, `رسائل معلقة مستحقة جاهزة للتصدير: ${due.length}`);
+ok(due.every((m) => m.recipient && m.body), 'كل صف يحمل رقم المستلم ونص الرسالة (عمودا ملف الإرسال المحلي)');
+const dueIds = due.map((m) => m.id);
+await expectError('المحفّظ يعلّم الرسائل كمُصدّرة', () => as('authenticated', EXMU, () =>
+  q1(`select export_messages($1::uuid[], 'exported')`, [dueIds])));
+await expectError('الزائر يعلّم الرسائل كمُصدّرة', () => as('anon', null, () =>
+  q1(`select export_messages($1::uuid[], 'exported')`, [dueIds])));
+await expectError('حالة تصدير غير مسموحة', () => as('authenticated', CLERK, () =>
+  q1(`select export_messages($1::uuid[], 'cancelled')`, [dueIds])));
+
+const exported = await as('authenticated', CLERK, () => q1(`select export_messages($1::uuid[], 'exported') c`, [dueIds]));
+ok(exported.c === due.length, `تعليم ${exported.c} رسالة كمُصدّرة`);
+const statuses = await qa(`select distinct status from outbound_messages where id = any($1::uuid[])`, [dueIds]);
+ok(statuses.length === 1 && statuses[0].status === 'exported', 'حالة الرسائل صارت «مُصدّرة»');
+const claimAfterExport = await as('service_role', null, () => qa(`select * from claim_messages(50)`));
+ok(claimAfterExport.length === 0, 'الرسائل المُصدّرة لا تدخل طابور الإرسال الآلي');
+
+const sentOne = await as('authenticated', CLERK, () => q1(`select export_messages($1::uuid[], 'sent') c`, [[dueIds[0]]]));
+const sentRow = await q1(`select status, sent_at from outbound_messages where id = $1`, [dueIds[0]]);
+ok(sentOne.c === 1 && sentRow.status === 'sent' && sentRow.sent_at !== null, 'تعليم رسالة كمُرسلة يدوياً بعد إرسالها محلياً');
+await as('authenticated', CLERK, () => q1(`select retry_message($1)`, [dueIds[1]]));
+ok((await q1(`select status from outbound_messages where id = $1`, [dueIds[1]])).status === 'queued', 'إعادة رسالة مُصدّرة إلى الطابور');
+const expAudit = await q1(`select count(*)::int c from audit_log where action = 'messages.export'`);
+ok(expAudit.c === 2, `التصدير مسجَّل في سجل العمليات: ${expAudit.c}`);
 
 console.log('\n— القوالب والصلاحيات');
 await as('authenticated', SUPER, () => db.query(`update message_templates set enabled = false where key = 'application_received'`));

@@ -52,13 +52,12 @@ export const COLUMNS = {
   office: ['المكتب', 'office'],
   teacher_name: ['محفّظ الحلقة', 'اسم المحفّظ', 'teacher_name'],
   level: ['المستوى', 'level'],
-  matns: ['المتون', 'matns'],
   memorized_amount: ['مقدار الحفظ', 'memorized_amount'],
   verses_range: ['الأبيات', 'الأبيات / المواضع', 'verses_range'],
   student_notes: ['ملاحظات', 'ملاحظات الطالب', 'student_notes'],
 };
 const REQUIRED = ['first_name', 'father_name', 'family_name', 'birth_date', 'national_id', 'residence', 'phone',
-  'circle_name', 'center_name', 'office', 'level', 'matns', 'memorized_amount'];
+  'circle_name', 'center_name', 'office', 'level', 'memorized_amount'];
 
 /** توحيد النص العربي للمقارنة: إزالة التشكيل والتطويل وتوحيد الألف والياء والتاء المربوطة */
 export const normalize = (s) => String(s ?? '')
@@ -120,10 +119,6 @@ export function buildPayload(cells, index, lookups) {
   const sectionRaw = normalize(get('section'));
   const section = sectionRaw.includes('حافظات') || sectionRaw === 'women' || (!sectionRaw && gender === 'female') ? 'women' : 'men';
 
-  const matnNames = get('matns').split(/[،,;؛·|\n]+/).map((s) => s.trim()).filter(Boolean);
-  const matnIds = matnNames.map((n) => byName(lookups.matns, n, 'المتن')).filter(Boolean);
-  if (!matnNames.length) errors.push('المتون فارغة');
-
   const payload = {
     first_name: get('first_name'),
     father_name: get('father_name'),
@@ -142,12 +137,11 @@ export function buildPayload(cells, index, lookups) {
     office_id: byName(lookups.offices, get('office'), 'المكتب'),
     teacher_name: get('teacher_name'),
     level_id: byName(lookups.levels, get('level'), 'المستوى'),
-    matn_ids: matnIds,
     memorized_amount: get('memorized_amount'),
     verses_range: get('verses_range'),
     student_notes: get('student_notes'),
   };
-  for (const f of REQUIRED.filter((x) => !['office', 'level', 'matns', 'birth_date', 'national_id'].includes(x))) {
+  for (const f of REQUIRED.filter((x) => !['office', 'level', 'birth_date', 'national_id'].includes(x))) {
     if (!payload[f]) errors.push(`الحقل «${COLUMNS[f][0]}» فارغ`);
   }
   return { payload, errors };

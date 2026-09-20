@@ -48,7 +48,7 @@ export default function Appointments({ portal }) {
   };
 
   const application = (a) => ({
-    id: a.application_id, full_name: a.full_name, whatsapp: a.whatsapp, matn_names: a.matn_names, examiner_name: a.examiner_name,
+    id: a.application_id, full_name: a.full_name, whatsapp: a.whatsapp, level_name: a.level_name, examiner_name: a.examiner_name,
   });
 
   return (

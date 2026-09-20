@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useExamDetails } from '../../components/ExamReview';
 import { Loading } from '../../components/ui';
 import { useUi } from '../../context/UiContext';
@@ -12,7 +12,7 @@ import { criterionValue, examScore, questionDeductionsTotal, questionScore } fro
 
 const EDITABLE = ['draft', 'in_progress', 'rejected'];
 const SAVE_DELAY = 700;
-const pick = (q) => ({ criteria_scores: q.criteria_scores, deductions: q.deductions, touched: q.touched, matn_id: q.matn_id });
+const pick = (q) => ({ criteria_scores: q.criteria_scores, deductions: q.deductions, touched: q.touched });
 
 export default function ExamRoom() {
   const { examId } = useParams();
@@ -34,17 +34,6 @@ export default function ExamRoom() {
   const exam = data?.exam;
   const cfg = exam?.config;
   const editable = exam && EDITABLE.includes(exam.status);
-
-  const { data: matnOptions = [] } = useQuery({
-    queryKey: ['exam-matns', exam?.application_id],
-    enabled: !!exam?.application_id,
-    queryFn: async () => {
-      const { data: rows, error: err } = await supabase.from('application_matns').select('matn_id, matns(name, sort_order)')
-        .eq('application_id', exam.application_id);
-      if (err) throw err;
-      return rows.map((r) => ({ id: r.matn_id, name: r.matns?.name, order: r.matns?.sort_order ?? 0 })).sort((a, b) => a.order - b.order);
-    },
-  });
 
   useEffect(() => {
     if (data && questions === null) {
@@ -210,7 +199,7 @@ export default function ExamRoom() {
         <div>
           <div className="nm">{exam.full_name}</div>
           <div className="sub">
-            {data.app.level_name} · متون {(data.app.matn_names || []).join(' و')} · <bdi dir="ltr" style={{ whiteSpace: 'nowrap' }}>{exam.exam_no}</bdi>
+            {data.app.level_name}{data.app.memorized_amount ? ` · ${data.app.memorized_amount}` : ''} · <bdi dir="ltr" style={{ whiteSpace: 'nowrap' }}>{exam.exam_no}</bdi>
           </div>
         </div>
         <div className="sp" />
@@ -241,13 +230,6 @@ export default function ExamRoom() {
         <div className="qcard">
           <div className="h">
             <h3>{ordinal(q.q_index)}</h3>
-            {matnOptions.length > 1 && (
-              <select value={q.matn_id || ''} disabled={!editable} aria-label="متن السؤال"
-                onChange={(e) => update((prev) => ({ ...prev, matn_id: e.target.value || null }))}>
-                <option value="">المتن…</option>
-                {matnOptions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            )}
             {editable && <>
               <button className="exs-btn red" onClick={resetQuestion}>إلغاء السؤال</button>
               <button className="exs-btn" onClick={doUndo}>تراجع</button>

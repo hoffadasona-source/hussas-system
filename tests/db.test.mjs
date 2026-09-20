@@ -35,14 +35,14 @@ await db.exec(`
     ('${EXM2U}', 'محمد الزروق', 'm.zarrouq', 'examiner'),
     ('${CLERK}', 'نورالدين الساعدي', 'n.saedi', 'admin');
   insert into examiners (user_id, full_name, employee_no, office_id)
-    select '${EXM1U}', 'عبدالسلام الفيتوري', '1024', id from offices order by sort_order limit 1;
+    select '${EXM1U}', 'عبدالسلام الفيتوري', '1024', id from offices where active order by sort_order limit 1;
   insert into examiners (user_id, full_name, employee_no, office_id)
-    select '${EXM2U}', 'محمد الزروق', '1031', id from offices order by sort_order limit 1;
+    select '${EXM2U}', 'محمد الزروق', '1031', id from offices where active order by sort_order limit 1;
 `);
 const exm1 = (await q1(`select id from examiners where user_id = $1`, [EXM1U])).id;
-const lookups = await q1(`select (select id from offices order by sort_order limit 1) office,
-  (select id from levels order by sort_order limit 1) level,
-  (select json_agg(id) from (select id from matns order by sort_order limit 2) t) matns`);
+const lookups = await q1(`select (select id from offices where active order by sort_order limit 1) office,
+  (select id from levels where active order by sort_order limit 1) level,
+  (select name from levels where active order by sort_order limit 1) level_name`);
 
 console.log('\n— الواجهة العامة (anon)');
 const payload = {
@@ -50,7 +50,7 @@ const payload = {
   birth_date: '2005-03-01', gender: 'male', national_id: '119870001234', residence: 'طرابلس',
   phone: '091-234-5678', whatsapp: '0912345678', email: '', section: 'men',
   circle_name: 'حلقة النور', center_name: 'مركز الفتح', office_id: lookups.office, level_id: lookups.level,
-  memorized_amount: 'المتن كاملاً', matn_ids: lookups.matns,
+  memorized_amount: 'المستوى كاملاً',
 };
 const sub = await as('anon', null, () => q1(`select submit_application($1::jsonb) r`, [JSON.stringify(payload)]));
 ok(/^REG-\d{4}-00001$/.test(sub.r.reg_no), `submit_application → ${sub.r.reg_no} / ${sub.r.student_no}`);
@@ -77,8 +77,8 @@ await expectError('المحفّظ يقبل الطلب', () => as('authenticated'
 await as('authenticated', CLERK, () => qa(`select mark_application_under_review($1)`, [appId]));
 await as('authenticated', CLERK, () => qa(`select approve_application($1)`, [appId]));
 await as('authenticated', CLERK, () => qa(`select assign_application($1, $2, 'ملاحظة')`, [appId, exm1]));
-const va = await as('authenticated', CLERK, () => q1(`select status, examiner_name, matn_names from v_applications where id = $1`, [appId]));
-ok(va.status === 'assigned' && va.examiner_name === 'عبدالسلام الفيتوري' && va.matn_names.length === 2, 'assign → ' + va.status);
+const va = await as('authenticated', CLERK, () => q1(`select status, examiner_name, level_name from v_applications where id = $1`, [appId]));
+ok(va.status === 'assigned' && va.examiner_name === 'عبدالسلام الفيتوري' && va.level_name === lookups.level_name, 'assign → ' + va.status);
 await expectError('الإداري يعدّل حالة الطلب مباشرة', () => as('authenticated', CLERK, () => qa(`update applications set status = 'published' where id = $1`, [appId])));
 await expectError('الإداري يعدّل الإعدادات (لمدير النظام فقط)', async () => {
   const r = await as('authenticated', CLERK, () => db.query(`update settings set org_name = 'x' where id = 1`));
@@ -104,9 +104,10 @@ const voice = cfg.criteria[0].id;
 const tanbih = cfg.deductions.find(d => d.name === 'التنبيه').id;
 const lahn = cfg.deductions.find(d => d.name === 'اللحن الخفي').id;
 const qs = await as('authenticated', EXM1U, () => qa(`select q_index, score from exam_questions where exam_id = $1 order by q_index`, [ex.id]));
-ok(qs.length === 3 && Number(qs[0].score) === 90, `3 أسئلة، الدرجة الابتدائية بالصوت 5 = ${qs[0].score} (المتوقع 90)`);
+ok(qs.length === 3 && Number(qs[0].score) === 18, `3 أسئلة، الدرجة الابتدائية بالصوت 5 = ${qs[0].score} من 20 (المتوقع 18)`);
 
-// س1: صوت 8 + تنبيه×1 = 100 − 4 − 6 = 90 · س2: صوت 9 = 98 · س3: صوت 7 + لحن خفي×2 = 100 − 6 − 3 = 91
+// أساس السؤال 20 · الصوت من 10 بمعامل 0.4 · التنبيه درجة و«اللحن الخفي» ربع درجة
+// س1: صوت 8 + تنبيه×1 = 20 − 0.8 − 1 = 18.2 · س2: صوت 9 = 19.6 · س3: صوت 7 + لحن خفي×2 = 20 − 1.2 − 0.5 = 18.3
 const upd = (i, c, d) => as('authenticated', EXM1U, () => db.query(
   `update exam_questions set criteria_scores = $1::jsonb, deductions = $2::jsonb, touched = true where exam_id = $3 and q_index = $4`,
   [JSON.stringify(c), JSON.stringify(d), ex.id, i]));
@@ -114,7 +115,7 @@ await upd(0, { [voice]: 8 }, { [tanbih]: 1 });
 await upd(1, { [voice]: 9 }, {});
 await upd(2, { [voice]: 7 }, { [lahn]: 2 });
 const qs2 = await as('authenticated', EXM1U, () => qa(`select score from exam_questions where exam_id = $1 order by q_index`, [ex.id]));
-ok(qs2.map(r => Number(r.score)).join(',') === '90,98,91', 'درجات الأسئلة ' + qs2.map(r => r.score).join(','));
+ok(qs2.map(r => Number(r.score)).join(',') === '18.2,19.6,18.3', 'درجات الأسئلة بكسور الدليل ' + qs2.map(r => r.score).join(','));
 ok((await q1(`select status from exams where id = $1`, [ex.id])).status === 'in_progress', 'الامتحان صار «جارٍ»');
 await expectError('المحفّظ الآخر يعدّل الأسئلة', async () => {
   const r = await as('authenticated', EXM2U, () => db.query(`update exam_questions set deductions = '{}' where exam_id = $1`, [ex.id]));
@@ -122,7 +123,7 @@ await expectError('المحفّظ الآخر يعدّل الأسئلة', async (
 });
 await expectError('المحفّظ يعدّل عمود score مباشرة', () => as('authenticated', EXM1U, () => db.query(`update exam_questions set score = 100 where exam_id = $1`, [ex.id])));
 const score = await as('authenticated', EXM1U, () => q1(`select submit_exam($1) s`, [ex.id]));
-ok(Number(score.s) === 93, `submit_exam → ${score.s} (المتوقع 93)`);
+ok(Number(score.s) === 93.5, `submit_exam → ${score.s} (المتوقع 93.5 = متوسط 18.7 من 20)`);
 await expectError('تعديل الأسئلة بعد الإرسال', async () => {
   const r = await as('authenticated', EXM1U, () => db.query(`update exam_questions set deductions = '{}' where exam_id = $1`, [ex.id]));
   if (r.affectedRows === 0) throw new Error('0 rows (RLS)');
@@ -136,7 +137,7 @@ await as('authenticated', ADMIN, () => qa(`select return_exam($1, 'راجع ال
 ok((await q1(`select status from exams where id = $1`, [ex.id])).status === 'rejected', 'إرجاع للمحفّظ');
 await upd(2, { [voice]: 7 }, { [lahn]: 1 });
 const score2 = await as('authenticated', EXM1U, () => q1(`select submit_exam($1) s`, [ex.id]));
-ok(Number(score2.s) === 93.5, `إعادة الإرسال بعد التصحيح → ${score2.s}`);
+ok(Number(score2.s) === 93.92, `إعادة الإرسال بعد التصحيح → ${score2.s} (متوسط 18.783… من 20 بمنزلتين)`);
 await db.exec(`update profiles set can_final_approve = true, can_issue_certificates = true where id = '${CLERK}'`);
 await as('authenticated', CLERK, () => qa(`select approve_exam($1, 'ممتاز')`, [ex.id]));
 await as('authenticated', ADMIN, () => db.query(`insert into grade_scales (name, min_score, max_score, is_passing) values ('ممتاز', 90, 100, true), ('راسب', 0, 59.99, false)`));
@@ -145,7 +146,7 @@ ok(/^CERT-\d{4}-00001$/.test(cert.no), 'issue_certificate → ' + cert.no);
 await expectError('إصدار شهادة مكررة', () => as('authenticated', CLERK, () => q1(`select issue_certificate($1)`, [ex.id])));
 
 const res = await as('anon', null, () => q1(`select lookup_result($1) r`, ['119870001234']));
-ok(res.r.state === 'published' && Number(res.r.score) === 93.5 && res.r.grade === 'ممتاز' && res.r.questions.length === 3,
+ok(res.r.state === 'published' && Number(res.r.score) === 93.92 && res.r.grade === 'ممتاز' && res.r.questions.length === 3,
   `lookup_result → ${res.r.score} ${res.r.grade}, cert ${res.r.certificate?.cert_no}`);
 const ver = await as('anon', null, () => q1(`select verify_certificate($1) r`, [cert.no.toLowerCase()]));
 ok(ver.r.status === 'valid' && ver.r.student_name.includes('الشريف'), 'verify_certificate');
@@ -158,7 +159,7 @@ ok(dash.d.students === 1 && dash.d.certificates === 1 && dash.d.monthly.length =
 const edash = await as('authenticated', EXM1U, () => q1(`select examiner_dashboard() d`));
 ok(edash.d.submitted === 1, 'examiner_dashboard ' + JSON.stringify(edash.d));
 const rep = await as('authenticated', ADMIN, () => q1(`select report_summary(null, null, null, null) r`));
-ok(rep.r.exams === 1 && Number(rep.r.average) === 93.5 && Number(rep.r.pass_rate) === 100 && rep.r.deductions.length === 2,
+ok(rep.r.exams === 1 && Number(rep.r.average) === 93.9 && Number(rep.r.pass_rate) === 100 && rep.r.deductions.length === 2,
   'report_summary ' + JSON.stringify(rep.r).slice(0, 220));
 await expectError('المحفّظ يطلب التقارير', () => as('authenticated', EXM1U, () => q1(`select report_summary(null, null, null, null)`)));
 const audit = await as('authenticated', CLERK, () => qa(`select action from audit_log order by id`));
@@ -210,6 +211,52 @@ await expectError('الإداري يرفع صلاحياته بنفسه', async (
 });
 const trgm = await q1(`select count(*)::int c from pg_indexes where indexname like '%_trgm'`);
 ok(trgm.c === 3, 'فهارس البحث النصي: ' + trgm.c);
+
+console.log('\n— إلغاء المتون والاعتماد على المستويات');
+const gone = await q1(`select to_regclass('public.matns') m, to_regclass('public.application_matns') am`);
+ok(gone.m === null && gone.am === null, 'جدولا المتون وربطها محذوفان');
+const cols = await qa(`select table_name, column_name from information_schema.columns
+  where table_schema = 'public' and column_name like '%matn%'`);
+ok(cols.length === 0, 'لا يوجد أي عمود باسم المتون في المخطط');
+const levelCount = await q1(`select count(*)::int c from levels where active`);
+ok(levelCount.c === 5, `المستويات الفعّالة خمسة: ${levelCount.c}`);
+
+// طلب جديد بلا أي ذكر للمتون، ومع تجاهل أي حقل matn_ids قديم قد يرسله عميل غير محدَّث
+const level5 = await q1(`select id, name from levels where active order by sort_order desc limit 1`);
+const newApp = await as('anon', null, () => q1(`select submit_application($1::jsonb) r`, [JSON.stringify({
+  ...payload, national_id: '120000009999', first_name: 'يوسف', family_name: 'المبروك',
+  level_id: level5.id, matn_ids: [],
+})]));
+ok(/^REG-\d{4}-\d{5}$/.test(newApp.r.reg_no), `طلب جديد بلا متون → ${newApp.r.reg_no}`);
+const newAppRow = await as('authenticated', CLERK, () => q1(
+  `select level_name, status from v_applications where reg_no = $1`, [newApp.r.reg_no]));
+ok(newAppRow.level_name === level5.name && newAppRow.status === 'pending', `الطلب مسجَّل في ${newAppRow.level_name}`);
+const certLevel = await as('authenticated', CLERK, () => q1(`select level_name from certificates where cert_no = $1`, [cert.no]));
+ok(certLevel.level_name === lookups.level_name, `الشهادة تحمل اسم المستوى: ${certLevel.level_name}`);
+const verLevel = await as('anon', null, () => q1(`select verify_certificate($1) r`, [cert.no]));
+ok(verLevel.r.level === lookups.level_name && verLevel.r.matns === undefined, 'التحقق من الشهادة يعرض المستوى لا المتون');
+
+console.log('\n— إعدادات الهوية والقالب والمكاتب');
+const setCols = await qa(`select column_name from information_schema.columns
+  where table_schema = 'public' and table_name = 'settings'
+    and column_name in ('logo_url', 'logo_scale', 'cert_bg_pdf_url', 'cert_layout_config')`);
+ok(setCols.length === 4, 'أعمدة الشعار وقالب الشهادة مضافة');
+await as('authenticated', ADMIN, () => db.query(
+  `update settings set logo_url = 'https://x/logo.png', logo_scale = 1.4, cert_bg_pdf_url = 'https://x/cert.pdf',
+     cert_layout_config = '{"page":{"w":842,"h":595},"fields":{"student_name":{"x":50,"y":46}}}'::jsonb where id = 1`));
+const brand = await q1(`select logo_scale, cert_layout_config from settings where id = 1`);
+ok(Number(brand.logo_scale) === 1.4 && brand.cert_layout_config.fields.student_name.x === 50, 'حفظ الشعار وإحداثيات القالب');
+await expectError('حجم شعار خارج الحدود', () => db.query(`update settings set logo_scale = 9 where id = 1`));
+
+const imp = await as('authenticated', ADMIN, () => q1(
+  `select import_offices($1::text[], false) r`, [['مكتب أوقاف صبراتة', 'مكتب أوقاف الجديد']]));
+ok(imp.r.added === 1 && imp.r.updated === 1, `استيراد المكاتب: أُضيف ${imp.r.added} وحُدّث ${imp.r.updated}`);
+await expectError('الإداري يستورد المكاتب (لمدير النظام فقط)', () => as('authenticated', CLERK, () =>
+  q1(`select import_offices($1::text[], false)`, [['مكتب تجريبي']])));
+await expectError('anon يستورد المكاتب', () => as('anon', null, () =>
+  q1(`select import_offices($1::text[], false)`, [['مكتب تجريبي']])));
+const officeStillThere = await q1(`select count(*)::int c from offices where name = 'مكتب أوقاف تاورغاء'`);
+ok(officeStillThere.c === 1, 'الاستيراد لا يحذف المكاتب الموجودة');
 
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
 process.exit(failures ? 1 : 0);
