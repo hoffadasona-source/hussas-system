@@ -16,12 +16,13 @@
     "test:db": "node tests/db.test.mjs",
     "test:scoring": "node tests/scoring.test.mjs",
     "test:e2e": "node --env-file=.env.local tests/e2e-api.test.mjs",
-    "test": "npm run test:scoring && npm run test:import && npm run test:messaging && npm run test:db && npm run test:notifications",
+    "test": "npm run test:scoring && npm run test:import && npm run test:messaging && npm run test:db && npm run test:notifications && npm run test:usage",
     "import": "node --env-file=.env.local scripts/import-applications.mjs",
     "test:import": "node tests/import.test.mjs",
     "test:notifications": "node tests/notifications.test.mjs",
     "test:messaging": "node tests/messaging.test.mjs",
-    "build:pages": "vite build && node scripts/pages-fallback.mjs"
+    "build:pages": "vite build && node scripts/pages-fallback.mjs",
+    "test:usage": "node tests/usage.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

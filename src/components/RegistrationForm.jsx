@@ -16,8 +16,8 @@ const EMPTY = {
   center_name: '', office_id: '', teacher_name: '', level_id: '', student_notes: '',
 };
 
-/** بطاقة «ممتحن سابقاً؟»: تحقق بالرقم الوطني وتاريخ الميلاد ثم تعبئة البيانات تلقائياً */
-function ReturningStudent({ onFound }) {
+/** بطاقة «ممتحن سابقاً؟»: تحقق بالرقم الوطني (وتاريخ الميلاد للزائر) ثم تعبئة البيانات تلقائياً */
+function ReturningStudent({ onFound, staff = false }) {
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ national_id: '', birth_date: '' });
   const [busy, setBusy] = useState(false);
@@ -26,12 +26,14 @@ function ReturningStudent({ onFound }) {
   const check = async () => {
     setError('');
     if (!/^\d{12}$/.test(f.national_id)) return setError('الرقم الوطني 12 رقماً.');
-    if (!f.birth_date) return setError('تاريخ الميلاد مطلوب للتأكد من الهوية.');
+    if (!staff && !f.birth_date) return setError('تاريخ الميلاد مطلوب للتأكد من الهوية.');
     setBusy(true);
     try {
-      const res = await rpc('check_returning_student', { p_national_id: f.national_id, p_birth_date: f.birth_date });
+      const res = await rpc('check_returning_student', { p_national_id: f.national_id, p_birth_date: f.birth_date || null });
       if (res?.state === 'found') onFound(res);
-      else setError('لا يوجد طالب مسجَّل بهذا الرقم الوطني وتاريخ الميلاد. أكمل التسجيل كطالب جديد.');
+      else setError(staff
+        ? 'لا يوجد طالب مسجَّل بهذا الرقم الوطني. أكمل الإدخال كطالب جديد.'
+        : 'لا يوجد طالب مسجَّل بهذا الرقم الوطني وتاريخ الميلاد. أكمل التسجيل كطالب جديد.');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -44,11 +46,15 @@ function ReturningStudent({ onFound }) {
       <div className="card-b" style={{ padding: 14 }}>
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <b>ممتحن سابقاً في البرنامج؟</b>
-            <div className="small muted">اجلب بياناتك بالرقم الوطني وتاريخ الميلاد، وسجّل في مستوى جديد مباشرة.</div>
+            <b>{staff ? 'الطالب ممتحن سابقاً؟' : 'ممتحن سابقاً في البرنامج؟'}</b>
+            <div className="small muted">
+              {staff
+                ? 'ابحث بالرقم الوطني لجلب بيانات الطالب ومستوياته السابقة.'
+                : 'اجلب بياناتك بالرقم الوطني وتاريخ الميلاد، وسجّل في مستوى جديد مباشرة.'}
+            </div>
           </div>
           <button type="button" className={`btn ${open ? 'ghost' : 'teal'} sm`} onClick={() => setOpen((o) => !o)}>
-            {open ? 'إغلاق' : 'نعم، جلب بياناتي'}
+            {open ? 'إغلاق' : staff ? 'بحث عن طالب سابق' : 'نعم، جلب بياناتي'}
           </button>
         </div>
         {open && (
@@ -58,7 +64,7 @@ function ReturningStudent({ onFound }) {
                 <input className="inp ltr" inputMode="numeric" maxLength={12} placeholder="12 رقماً"
                   value={f.national_id} onChange={(e) => setF({ ...f, national_id: e.target.value.replace(/\D/g, '') })} />
               </Field>
-              <Field label="تاريخ الميلاد" required hint="للتأكد أن البيانات لك.">
+              <Field label="تاريخ الميلاد" required={!staff} hint={staff ? 'اختياري للإداري.' : 'للتأكد أن البيانات لك.'}>
                 <input className="inp" type="date" max={todayISO()} value={f.birth_date}
                   onChange={(e) => setF({ ...f, birth_date: e.target.value })} />
               </Field>
@@ -229,7 +235,7 @@ export default function RegistrationForm({ mode = 'public', onCreated }) {
           ))}
         </div>
 
-        {step === 0 && !isAdmin && !returning && <ReturningStudent onFound={applyReturning} />}
+        {step === 0 && !returning && <ReturningStudent onFound={applyReturning} staff={isAdmin} />}
         {returning && (
           <div className="alert ok mb">
             <b>طالب مسجَّل سابقاً: {returning.student?.full_name}</b>
