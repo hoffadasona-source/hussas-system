@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import ArbitrationGuide from '../../components/ArbitrationGuide';
 import { Icon } from '../../components/icons';
 import { Badge, Empty, ErrorBox, Field, Modal, PageHeader, Skeleton, Tabs } from '../../components/ui';
 import { useAction } from '../../components/workflow';
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'criteria', label: 'معايير التقييم' },
   { key: 'deductions', label: 'الخصميات' },
   { key: 'grades', label: 'سلّم التقديرات' },
+  { key: 'guide', label: 'الدليل الاسترشادي' },
 ];
 
 function CriterionModal({ item, onClose }) {
@@ -340,7 +342,11 @@ export default function ArbitrationCriteria() {
           </>
         )}
 
-        {!isLoading && tab !== 'grades' && <ScoreSimulator settings={settings} criteria={criteria} deductions={deductions} />}
+        {tab === 'guide' && <ArbitrationGuide />}
+
+        {!isLoading && (tab === 'criteria' || tab === 'deductions') && (
+          <ScoreSimulator settings={settings} criteria={criteria} deductions={deductions} />
+        )}
       </div>
 
       {editCrit !== undefined && <CriterionModal item={editCrit} onClose={() => setEditCrit(undefined)} />}

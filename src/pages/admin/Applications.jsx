@@ -15,7 +15,7 @@ export default function Applications() {
   const { data: lookups } = useLookups();
   const [status, setStatus] = useState('');
   const [office, setOffice] = useState('');
-  const [cycle, setCycle] = useState('');
+  const [level, setLevel] = useState('');
   const [profile, setProfile] = useState(null);
   const [assign, setAssign] = useState(null);
   const actions = useApplicationActions();
@@ -24,7 +24,7 @@ export default function Applications() {
     key: 'applications',
     source: 'v_applications',
     searchCols: ['reg_no', 'full_name', 'national_id', 'phone'],
-    filters: { status, office_id: office, cycle_id: cycle },
+    filters: { status, office_id: office, level_id: level },
   });
 
   return (
@@ -37,7 +37,7 @@ export default function Applications() {
         filters={[
           { value: status, onChange: setStatus, options: mapOptions(APP_STATUS), placeholder: 'كل الحالات' },
           { value: office, onChange: setOffice, options: rowsOptions(lookups?.offices), placeholder: 'كل المكاتب' },
-          { value: cycle, onChange: setCycle, options: rowsOptions(lookups?.cycles), placeholder: 'كل الدورات' },
+          { value: level, onChange: setLevel, options: rowsOptions(lookups?.levels), placeholder: 'كل المستويات' },
         ]}
         onRowClick={(r) => setProfile(r.student_id)}
         exportName="الطلبات"

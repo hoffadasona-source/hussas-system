@@ -51,7 +51,7 @@ console.log('\n— الإنشاء عبر قاعدة البيانات بحساب 
 const ADMIN = '11111111-1111-1111-1111-111111111111';
 await db.exec(`insert into auth.users (id) values ('${ADMIN}');
   insert into profiles (id, full_name, username, role) values ('${ADMIN}', 'مدير', 'admin', 'admin');
-  update cycles set registration_open = false;`);
+  update settings set registration_open = false where id = 1;`);
 await db.exec(`select set_config('request.jwt.claim.sub', '${ADMIN}', false); set role authenticated;`);
 const results = [];
 for (const { payload, errors } of built) {
@@ -65,7 +65,7 @@ for (const { payload, errors } of built) {
 }
 await db.exec('reset role;');
 ok(!!results[0].reg && !!results[1].reg, `أُنشئ طلبان رغم إغلاق التسجيل العام (الإداري مستثنى): ${results[0].reg}، ${results[1].reg}`);
-ok(results[3].error?.includes('يوجد طلب مسجَّل'), `الصف 4 (رقم وطني مكرر) مرفوض من قاعدة البيانات: ${results[3].error}`);
+ok(results[3].error?.includes('يوجد طلب قيد المعالجة'), `الصف 4 (رقم وطني مكرر) مرفوض من قاعدة البيانات: ${results[3].error}`);
 const saved = (await db.query(`select s.full_name, a.section, a.student_notes, l.name level_name
   from applications a join students s on s.id = a.student_id join levels l on l.id = a.level_id order by a.created_at`)).rows;
 ok(saved.length === 2 && saved[0].level_name === 'المستوى الأول' && saved[1].section === 'women',

@@ -94,6 +94,7 @@ src/
     ExamReview.jsx             مراجعة نتيجة الامتحان + useExamDetails
     CertificateView.jsx        الشهادة: فوق القالب المرفوع بإحداثيات حرة، أو التصميم المدمج + QR
     CertificateLayoutEditor.jsx رفع قالب الشهادة وتحديد مواضع الحقول بالسحب أو بالأرقام
+    ArbitrationGuide.jsx       نص الدليل الاسترشادي للتحكيم (تبويب داخل أساس التحكيم)
     ChangePassword.jsx         تغيير كلمة المرور (اختياري من لوحة التحكم)
     icons.jsx                  أيقونات SVG
   layouts/
@@ -102,7 +103,7 @@ src/
   pages/
     Login.jsx                  دخول الإدارة والمحفّظين
     public/                    Home · About · Register · ApplicationStatus · ResultLookup · CertificateVerify · NotFound
-    admin/                     Dashboard · Applications · NewApplication · Students · Examiners · Assignments · Exams · Results · Certificates · ArbitrationCriteria (أساس التحكيم) · Reports · Users · Settings · NotificationSettings · Messages · AuditLog
+    admin/                     Dashboard · Applications · NewApplication · Students · Examiners · Assignments · Exams · Results · Certificates · ArbitrationCriteria (أساس التحكيم: المعايير · الخصميات · التقديرات · الدليل الاسترشادي) · Reports · Users · Settings · NotificationSettings · Messages (لوحة الإشعارات) · AuditLog
     examiner/                  Dashboard · MyStudents · ExaminerExams · ExamRoom (قاعة الامتحان)
     shared/                    Appointments (للإدارة والمحفّظ) · CertificatePrint
 supabase/
@@ -160,19 +161,19 @@ README.md · ROADMAP.md
 7. `20261010000090_message_status_exported.sql` — حالة «مُصدّرة» للرسائل (ملف مستقل لأن قيمة enum الجديدة لا تُستعمل في معاملة إضافتها).
 8. `20261010000100_update_phase_1.sql` — حذف المتون وإعادة بناء العروض، أعمدة الشعار وقالب الشهادة، `export_messages`، `import_offices`، إلغاء إجبار كلمة المرور، دقة الكسور في احتساب الدرجات، مخزن `branding`.
 9. `20261011000100_arbitration_and_offices.sql` — معايير التحكيم والخصميات وفق الدليل الاسترشادي (¼ · ½ · 1)، وأساس السؤال 20، وقائمة مكاتب الأوقاف الـ 58 (بلا TRUNCATE: تفعيل وتحديث وتعطيل فقط).
+10. `20261012000100_continuous_program_and_returning_students.sql` — حذف جدول الدورات وعمود `cycle_id`، وفتح/إغلاق التسجيل من `settings.registration_open`، وإجراء `check_returning_student`، وقواعد التسجيل في برنامج مستمر، و«مقدار الحفظ» لم يعد إلزامياً.
 
 > **قاعدة:** لا تعدّل ملف migration منشوراً؛ أضف ملفاً جديداً باسم `YYYYMMDDHHMMSS_وصف.sql`.
 
-### الجداول (21)
+### الجداول (20)
 | الجدول | الغرض وأهم الأعمدة |
 |---|---|
 | `settings` | صف واحد `id=1`: بيانات الجهة، `exam_base` (**20** بمقياس دليل التحكيم)، `exam_questions` (3)، `exam_aggregate` (avg/min)، `exam_mode`، إعدادات الشهادة (`cert_prefix` مثل `CERT-{YYYY}-`، `cert_digits`، `cert_title`، الموقّع، `cert_show_qr`، **`cert_bg_pdf_url`** قالب PDF/صورة و **`cert_layout_config`** إحداثيات الحقول JSONB)، الهوية (**`logo_url`**، **`logo_scale`** 0.25–4)، الإشعارات (`notify_enabled`، `notify_channel`، `reminder_hours`، `public_site_url`) |
-| `cycles` | الدورات؛ دورة واحدة `is_current`، و `registration_open` |
 | `offices` · `levels` | قوائم مرجعية (`name`، `active`، `sort_order`). المكاتب = 58 مكتب أوقاف معتمد، والمستويات خمسة. **جدول `matns` وجدول `application_matns` حُذفا نهائياً** |
 | `profiles` | حسابات الدخول: `role`، `status`، `can_final_approve`، `can_issue_certificates`، `username` (**يُقبل بالعربية**)، `must_change_password` (بقي في المخطط لكنه دائماً false: لا إجبار على تغيير كلمة المرور) |
 | `examiners` | المحفّظون: `user_id` → profiles، `office_id`، `employee_no`، `status` |
 | `students` | `student_no` (STU-YYYY-00001)، `national_id` (12 رقماً، فريد)، الأسماء، `full_name` (عمود محسوب)، الميلاد، الجنس، الهاتف، واتساب |
-| `applications` | الطلب: `reg_no` (REG-YYYY-00001)، `student_id`، `cycle_id` (**طلب واحد لكل طالب في الدورة**)، القسم، الحلقة، المركز، المكتب، المستوى، مقدار الحفظ، `status`، `examiner_id`، سبب الرفض |
+| `applications` | الطلب: `reg_no` (REG-YYYY-00001)، `student_id`، القسم، الحلقة، المركز، المكتب، المستوى، `status`، `examiner_id`، سبب الرفض. **برنامج مستمر:** طلب مفتوح واحد لكل طالب، ولا يُعاد امتحان مستوى اجتازه |
 | `appointments` | المواعيد: `apt_no`، `exam_date` + `exam_time` (توقيت ليبيا)، `mode`، `location`، `status`، `notified_at` |
 | `criteria` | معايير التقييم (حالياً «الصوت والأداء» من 10، الافتراضي 5، معامل 0.4، خطوة 0.25): `max_score`، `default_score`، `penalty_factor`، `step`، `hint` |
 | `deduction_types` | الخصميات الاثنتا عشرة وفق الدليل الاسترشادي للتحكيم: التلعثم 0.25، التردد 0.50، اللحن الخفي 0.25، اللحن الجلي 1، التنبيه 1، الفتح 1، التقديم أو التأخير 0.50، النقص أو الزيادة 0.50، ترك الصلاة على النبي ﷺ 0.50، ترك الترضي أو الترحم 0.50، ترك تعظيم اسم الله 0.50، الراوي أو التخريج 1 |
@@ -205,10 +206,11 @@ pending ─► under_review ─► approved ─► assigned ─► scheduled ─
 ### إجراءات RPC ومن يستدعيها
 | الإجراء | من | الأثر |
 |---|---|---|
-| `submit_application(p jsonb)` | الزائر والإداري | ينشئ الطالب (أو يربط الموجود إن طابق الاسم وتاريخ الميلاد) والطلب بالمستوى المختار (`level_id`)؛ يرجع `reg_no` و `student_no`. الإداري يتجاوز إغلاق التسجيل ويستطيع تحديد الدورة |
+| `submit_application(p jsonb)` | الزائر والإداري | ينشئ الطالب (أو يربط الموجود إن طابق الاسم وتاريخ الميلاد) والطلب بالمستوى المختار (`level_id`)؛ يرجع `reg_no` و `student_no` و `level`. الإداري يتجاوز إغلاق التسجيل |
 | `track_application(p_query)` | الزائر | حالة الطلب برقم الطلب أو الرقم الوطني + تواريخ الخط الزمني |
 | `lookup_result(p_query)` | الزائر | النتيجة **المعتمدة فقط** برقم الطالب أو الرقم الوطني مع تفاصيل الأسئلة |
 | `verify_certificate(p_cert_no)` | الزائر | صحة الشهادة وحالتها (تُرجع `level` لا المتون) |
+| `check_returning_student(p_national_id, p_birth_date)` | الزائر والموظف | يتعرّف على الطالب السابق ويعيد بياناته ومستوياته السابقة والمستويات التي اجتازها والطلب المفتوح إن وُجد. الزائر يؤكد هويته بتاريخ الميلاد، والموظف معفى |
 | `export_messages(p_ids uuid[], p_status)` | الإداري | يعلّم الرسائل المعلقة «مُصدّرة» أو «مُرسلة» بعد تنزيلها Excel/CSV للإرسال المحلي، ويكتب في سجل العمليات |
 | `import_offices(p_names text[], p_deactivate_missing)` | مدير النظام | استيراد المكاتب دفعةً: يضيف الجديد ويحدّث الموجود ويفعّله، ويعطّل ما خرج من القائمة عند الطلب — **لا يحذف أبداً** |
 | `mark_application_under_review` · `approve_application` · `reject_application(p_reason)` · `assign_application(p_examiner_id, p_note)` | الإداري | انتقالات الطلب؛ إعادة التحويل تلغي المواعيد القائمة |
@@ -218,7 +220,7 @@ pending ─► under_review ─► approved ─► assigned ─► scheduled ─
 | `approve_exam(p_notes)` · `return_exam(p_reason)` | من يملك `final_approve` (إعادة فتح نتيجة معتمدة لمدير النظام فقط وتلغي شهادتها) | الاعتماد النهائي أو الإرجاع |
 | `issue_certificate(p_exam_id)` | من يملك `issue_certificates` | إصدار الشهادة (رقم من إعدادات البادئة) |
 | `revoke_certificate(p_reason)` | مدير النظام | إلغاء شهادة |
-| `admin_dashboard()` · `report_summary(cycle, office, from, to)` | الإداري | الإحصاءات والتقارير |
+| `admin_dashboard()` · `report_summary(office, from, to)` | الإداري | الإحصاءات والتقارير |
 | `examiner_dashboard()` | المحفّظ | إحصاءاته |
 | `record_sign_in()` · `password_changed()` | أي مستخدم مسجّل | تسجيل الدخول في السجل / إلغاء إلزام تغيير كلمة المرور |
 | `retry_message` · `cancel_message` | الإداري | طابور الرسائل |
@@ -253,6 +255,12 @@ pending ─► under_review ─► approved ─► assigned ─► scheduled ─
 - `settings.cert_bg_pdf_url` + `cert_layout_config`: يُرفع قالب الشهادة (PDF أو صورة)، وتُرسم الصفحة الأولى عبر pdf.js، ثم تُوضع الحقول فوقها بتموضع مطلق بنسب مئوية (x, y) مع حجم الخط باللون والسماكة. الطباعة تضبط مقاس الورقة على مقاس القالب بالنقاط.
 - الحقول المتاحة: اسم الطالب · المستوى · الدرجة · التقدير · رقم الشهادة · تاريخ الإصدار · اسم الجهة · عنوان الشهادة · اسم الموقّع وصفته · رمز التحقق QR.
 
+### البرنامج المستمر والطلبة السابقون
+- لا توجد «دورات»: التسجيل مستمر، ويُفتح ويُغلق من `settings.registration_open` (الإعدادات ← الامتحان)، والإداري يضيف الطلبات دائماً.
+- في نموذج التسجيل بطاقة «ممتحن سابقاً؟»: الرقم الوطني + تاريخ الميلاد ← `check_returning_student` ← تعبئة تلقائية للاسم وبيانات التواصل، وتخطّي خطوة البيانات الشخصية، وعرض المستويات السابقة، وإخفاء المستويات المجتازة من قائمة الاختيار.
+- قواعد `submit_application`: طلب مفتوح واحد لكل طالب، ولا يُعاد امتحان مستوى حالته `published`، وبيانات تواصل الطالب العائد تُحدَّث تلقائياً.
+- شاشة المراجعة تعرض بيانات الطالب ثم (القسم · الحلقة · المركز · المكتب · المحفّظ · المستوى · ملاحظة الطالب)؛ و«مقدار الحفظ» و«الأبيات» أُزيلا من التسجيل (العمودان باقيان للسجلات القديمة).
+
 ### أسماء المستخدمين العربية
 `supabase/functions/_shared/username.js` هو المرجع الوحيد: يوحّد الاسم (بلا تشكيل، ألف وهمزات وياء وتاء مربوطة موحّدة، مسافة واحدة)، ثم يولّد بريد Auth: الاسم اللاتيني القديم يبقى `username@domain`، وأي اسم عربي يصير `u-<32 خانة من SHA-256>@domain`. تستعمله الواجهة عند الدخول، ودالة `manage-users` عند الإنشاء، وسكربت `create-admin`. **لا إجبار على تغيير كلمة المرور**: ما يضعه الإداري نهائي.
 
@@ -260,7 +268,7 @@ pending ─► under_review ─► approved ─► assigned ─► scheduled ─
 - مشغّلات تضيف رسائل إلى `outbound_messages` عند: استلام الطلب، قبوله، رفضه، تحديد الموعد، **التذكير** (افتراضياً قبل 24 ساعة وساعتين بتوقيت ليبيا)، اعتماد النتيجة، صدور الشهادة. تغيير الموعد أو الغياب يلغي الرسائل غير المرسلة.
 - الدالة `send-messages` تحجز الدفعة وترسل عبر القناة المختارة وتعيد المحاولة مرتين.
 - الجدولة كل دقيقة عبر `supabase/snippets/schedule-send-messages.sql` (لم تُفعَّل بعد).
-- **التصدير للإرسال المحلي:** زر «تصدير Excel/CSV» في صفحة الرسائل ينزّل الرسائل المعلقة المستحقة بأعمدة (رقم الهاتف الدولي · نص الرسالة · الاسم · رقم الطلب · نوع الرسالة)، ثم `export_messages` يعلّمها «مُصدّرة» (أو «مُرسلة») فلا تتكرر ولا يلتقطها الإرسال الآلي؛ و«إعادة الإرسال» تعيدها إلى الطابور.
+- **لوحة الإشعارات:** تبويبات (بالانتظار · مُصدّرة · أُرسلت · فشلت · الكل)، وتحديد جماعي بمربعات اختيار مع إجراءي «تحديد كمُرسلة» و«تحديد كمُصدّرة» عبر `export_messages`، وزر «تصدير المعلقة Excel/CSV» بأعمدة (رقم الهاتف الدولي · نص الرسالة · الاسم · رقم الطلب · نوع الرسالة). المُصدّرة لا يلتقطها الإرسال الآلي، و«إعادة للطابور» تعيدها.
 - **الحالة الحالية:** لا مزود مربوط بعد؛ التصدير المحلي وزر «إرسال عبر واتساب» اليدوي (رابط `wa.me`) هما المستخدمان فعلياً.
 
 ---

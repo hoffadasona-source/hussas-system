@@ -17,14 +17,14 @@ export default function Results({ pending }) {
   const { data: examiners } = useExaminers();
   const { data: lookups } = useLookups();
   const [examiner, setExaminer] = useState('');
-  const [cycle, setCycle] = useState('');
+  const [level, setLevel] = useState('');
   const [open, setOpen] = useState(null);
 
   const list = usePagedList({
     key: pending ? 'results-pending' : 'results',
     source: 'v_exams',
     searchCols: ['exam_no', 'full_name', 'student_no'],
-    filters: { status: pending ? 'examiner_approved' : 'approved', examiner_id: examiner, cycle_id: cycle },
+    filters: { status: pending ? 'examiner_approved' : 'approved', examiner_id: examiner, level_id: level },
     order: pending ? ['submitted_at', true] : ['approved_at', false],
   });
 
@@ -61,7 +61,7 @@ export default function Results({ pending }) {
         searchPlaceholder="ابحث برقم الامتحان أو اسم الطالب"
         filters={[
           { value: examiner, onChange: setExaminer, options: rowsOptions(examiners, 'full_name'), placeholder: 'كل المحفّظين' },
-          { value: cycle, onChange: setCycle, options: rowsOptions(lookups?.cycles), placeholder: 'كل الدورات' },
+          { value: level, onChange: setLevel, options: rowsOptions(lookups?.levels), placeholder: 'كل المستويات' },
         ]}
         onRowClick={(r) => setOpen(r.id)}
         emptyTitle={pending ? 'لا توجد نتائج بانتظار الاعتماد' : 'لا توجد نتائج معتمدة'}

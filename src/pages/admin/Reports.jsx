@@ -28,13 +28,13 @@ const meter = (v) => (
 
 export default function Reports() {
   const { data: lookups } = useLookups();
-  const [f, setF] = useState({ cycle: '', office: '', from: '', to: '' });
+  const [f, setF] = useState({ office: '', from: '', to: '' });
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v?.target ? v.target.value : v }));
 
   const { data: r, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['report', f],
     queryFn: () => rpc('report_summary', {
-      p_cycle_id: f.cycle || null, p_office_id: f.office || null, p_from: f.from || null, p_to: f.to || null,
+      p_office_id: f.office || null, p_from: f.from || null, p_to: f.to || null,
     }),
   });
 
@@ -61,7 +61,6 @@ export default function Reports() {
       <PageHeader title="التقارير" sub="مؤشرات الأداء حسب الدورة والمكتب والمحفّظ والفترة." />
       <div className="card">
         <div className="toolbar no-print">
-          <Select className="inp w" value={f.cycle} onChange={set('cycle')} options={rowsOptions(lookups?.cycles)} placeholder="كل الدورات" />
           <Select className="inp w" value={f.office} onChange={set('office')} options={rowsOptions(lookups?.offices)} placeholder="كل المكاتب" />
           <label className="row small muted" style={{ gap: 6 }}>من <input className="inp" type="date" value={f.from} onChange={set('from')} style={{ width: 150 }} /></label>
           <label className="row small muted" style={{ gap: 6 }}>إلى <input className="inp" type="date" value={f.to} onChange={set('to')} style={{ width: 150 }} /></label>

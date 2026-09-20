@@ -350,6 +350,14 @@ a.act-card:hover{border-color:var(--teal);transform:translateY(-2px)}
 .cert-fld.sel{outline:2px solid var(--teal);background:rgba(30,138,140,.10)}
 .tpl-pick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 
+/* ---------- الدليل الاسترشادي للتحكيم ---------- */
+.guide-list{margin:0;padding-inline-start:20px;display:grid;gap:14px;counter-reset:none}
+.guide-list > li{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--surface-2)}
+.guide-list > li::marker{color:var(--teal);font-weight:600}
+.guide-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.guide-list p{margin:0;color:var(--text-2);font-size:14px;line-height:1.85}
+.guide-list ul{margin:8px 0 0;padding-inline-start:18px;color:var(--text-2);font-size:13.5px;line-height:1.9}
+
 /* ---------- تسجيل الدخول ---------- */
 .login-wrap{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
 .login-art{background:var(--navy);position:relative;display:grid;place-items:center;padding:40px;overflow:hidden}

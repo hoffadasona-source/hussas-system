@@ -151,7 +151,7 @@ export default function StudentProfile({ studentId, onClose }) {
                 <div className="tbl-wrap cards"><table className="tbl">
                   <thead><tr><th>رقم الطلب</th><th>الدورة</th><th>التاريخ</th><th>المحفّظ</th><th>الحالة</th></tr></thead>
                   <tbody>{data.apps.map((a) => (
-                    <tr key={a.id}><td className="num">{a.reg_no}</td><td className="small">{a.cycle_name}</td><td className="num small">{fmtDate(a.created_at)}</td>
+                    <tr key={a.id}><td className="num">{a.reg_no}</td><td className="small">{a.level_name}</td><td className="num small">{fmtDate(a.created_at)}</td>
                       <td className="small">{a.examiner_name || '—'}</td><td><StatusBadge map={APP_STATUS} value={a.status} /></td></tr>
                   ))}</tbody>
                 </table></div>

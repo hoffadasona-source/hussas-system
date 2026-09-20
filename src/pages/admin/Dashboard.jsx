@@ -23,7 +23,7 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <PageHeader title="لوحة المتابعة" sub={d?.cycle ? `نظرة عامة على حركة الطلبات والامتحانات — ${d.cycle}` : 'نظرة عامة على حركة الطلبات والامتحانات.'} />
+      <PageHeader title="لوحة المتابعة" sub="نظرة عامة على حركة الطلبات والامتحانات في البرنامج." />
       {stats.error && <ErrorBox error={errorMessage(stats.error)} onRetry={stats.refetch} />}
       <div className="stats">
         <Stat label="إجمالي الطلبة" value={d?.students} tone="b" />

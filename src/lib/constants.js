@@ -70,7 +70,7 @@ export const CHANNELS = { whatsapp: 'واتساب', sms: 'رسالة نصية SM
 // المتغيرات المتاحة في قوالب الرسائل (تُملأ في public.message_params)
 export const TEMPLATE_VARS = {
   student_name: 'اسم الطالب', first_name: 'الاسم الأول', reg_no: 'رقم الطلب', student_no: 'رقم الطالب',
-  level: 'المستوى', cycle: 'الدورة', office: 'المكتب', examiner: 'المحفّظ', org_name: 'اسم الجهة', org_phone: 'هاتف الجهة',
+  level: 'المستوى', office: 'المكتب', examiner: 'المحفّظ', org_name: 'اسم الجهة', org_phone: 'هاتف الجهة',
   date: 'تاريخ الموعد', time: 'وقت الموعد', place: 'مكان الجلسة', location: 'رابط الغرفة', appointment_notes: 'ملاحظات الموعد',
   rejection_reason: 'سبب الرفض', score: 'الدرجة', grade: 'التقدير', cert_no: 'رقم الشهادة',
   track_link: 'رابط متابعة الطلب', result_link: 'رابط النتيجة', verify_link: 'رابط التحقق من الشهادة',

@@ -54,7 +54,7 @@ const payload = {
 };
 const sub = await as('anon', null, () => q1(`select submit_application($1::jsonb) r`, [JSON.stringify(payload)]));
 ok(/^REG-\d{4}-00001$/.test(sub.r.reg_no), `submit_application → ${sub.r.reg_no} / ${sub.r.student_no}`);
-await expectError('طلب ثانٍ في نفس الدورة', () => as('anon', null, () => q1(`select submit_application($1::jsonb)`, [JSON.stringify(payload)])));
+await expectError('طلب ثانٍ والأول لم يُبتّ فيه', () => as('anon', null, () => q1(`select submit_application($1::jsonb)`, [JSON.stringify(payload)])));
 await expectError('رقم وطني مسجَّل ببيانات مختلفة', () => as('anon', null, () =>
   q1(`select submit_application($1::jsonb)`, [JSON.stringify({ ...payload, first_name: 'منتحل' })])));
 await expectError('رقم هاتف غير صحيح', () => as('anon', null, () =>
@@ -158,10 +158,10 @@ const dash = await as('authenticated', ADMIN, () => q1(`select admin_dashboard()
 ok(dash.d.students === 1 && dash.d.certificates === 1 && dash.d.monthly.length === 6, 'admin_dashboard ' + JSON.stringify(dash.d).slice(0, 160));
 const edash = await as('authenticated', EXM1U, () => q1(`select examiner_dashboard() d`));
 ok(edash.d.submitted === 1, 'examiner_dashboard ' + JSON.stringify(edash.d));
-const rep = await as('authenticated', ADMIN, () => q1(`select report_summary(null, null, null, null) r`));
+const rep = await as('authenticated', ADMIN, () => q1(`select report_summary(null, null, null) r`));
 ok(rep.r.exams === 1 && Number(rep.r.average) === 93.9 && Number(rep.r.pass_rate) === 100 && rep.r.deductions.length === 2,
   'report_summary ' + JSON.stringify(rep.r).slice(0, 220));
-await expectError('المحفّظ يطلب التقارير', () => as('authenticated', EXM1U, () => q1(`select report_summary(null, null, null, null)`)));
+await expectError('المحفّظ يطلب التقارير', () => as('authenticated', EXM1U, () => q1(`select report_summary(null, null, null)`)));
 const audit = await as('authenticated', CLERK, () => qa(`select action from audit_log order by id`));
 ok(audit.length >= 10, 'سجل العمليات: ' + audit.map(a => a.action).join(' · '));
 await expectError('المحفّظ يقرأ سجل العمليات', async () => {
@@ -235,6 +235,53 @@ const certLevel = await as('authenticated', CLERK, () => q1(`select level_name f
 ok(certLevel.level_name === lookups.level_name, `الشهادة تحمل اسم المستوى: ${certLevel.level_name}`);
 const verLevel = await as('anon', null, () => q1(`select verify_certificate($1) r`, [cert.no]));
 ok(verLevel.r.level === lookups.level_name && verLevel.r.matns === undefined, 'التحقق من الشهادة يعرض المستوى لا المتون');
+
+console.log('\n— البرنامج المستمر والطالب السابق');
+const noCycles = await q1(`select to_regclass('public.cycles') c,
+  (select count(*)::int from information_schema.columns
+    where table_schema = 'public' and column_name = 'cycle_id') cols`);
+ok(noCycles.c === null && noCycles.cols === 0, 'جدول الدورات وعمود cycle_id اختفيا من المخطط');
+
+// الطالب السابق: لا تُكشف بياناته بالرقم الوطني وحده
+ok((await as('anon', null, () => q1(`select check_returning_student('119870001234', null) r`))).r.state === 'not_found',
+  'الرقم الوطني وحده لا يكشف بيانات الطالب');
+ok((await as('anon', null, () => q1(`select check_returning_student('119870001234', '2000-01-01') r`))).r.state === 'not_found',
+  'تاريخ ميلاد خاطئ = لا نتيجة');
+ok((await as('anon', null, () => q1(`select check_returning_student('123', null) r`))).r.state === 'invalid', 'رقم وطني غير صحيح');
+ok((await as('anon', null, () => q1(`select check_returning_student('129999999999', '2005-03-01') r`))).r.state === 'not_found',
+  'رقم وطني غير مسجَّل');
+
+// الطلب الأول أُعيدت نتيجته سابقاً في هذا الاختبار؛ نعتمده هنا لمحاكاة طالب أنهى مستواه
+await db.exec(`update applications set status = 'published' where reg_no = '${sub.r.reg_no}'`);
+
+const ret = await as('anon', null, () => q1(`select check_returning_student('119870001234', '2005-03-01') r`));
+ok(ret.r.state === 'found' && ret.r.student.full_name === 'محمد أحمد عبدالله الشريف' && ret.r.student.whatsapp === '0912345678',
+  `جلب بيانات الطالب السابق: ${ret.r.student?.full_name}`);
+ok(ret.r.applications.length >= 1 && ret.r.applications.some((a) => a.level === lookups.level_name),
+  `مستوياته السابقة تظهر: ${ret.r.applications.map((a) => `${a.level}/${a.status}`).join('، ')}`);
+ok(ret.r.passed_level_ids.includes(lookups.level) && ret.r.open_application === null,
+  'المستوى المجتاز مُعلَّم ولا يوجد طلب مفتوح');
+ok((await as('authenticated', CLERK, () => q1(`select check_returning_student('119870001234', null) r`))).r.state === 'found',
+  'الإداري يجلب البيانات بالرقم الوطني وحده من اللوحة');
+
+// لا يُعاد امتحان مستوى مجتاز، ويُسمح بمستوى آخر بلا «مقدار حفظ»
+await expectError('تسجيل الطالب في مستوى سبق أن اجتازه', () => as('anon', null, () =>
+  q1(`select submit_application($1::jsonb)`, [JSON.stringify(payload)])));
+const level2 = await q1(`select id, name from levels where active and id <> $1 order by sort_order limit 1`, [lookups.level]);
+const again2 = await as('anon', null, () => q1(`select submit_application($1::jsonb) r`, [JSON.stringify({
+  ...payload, level_id: level2.id, memorized_amount: null })]));
+ok(/^REG-/.test(again2.r.reg_no), `الطالب نفسه يسجّل في ${level2.name} → ${again2.r.reg_no}`);
+ok(again2.r.returning === true && again2.r.level === level2.name, 'الإيصال يوضّح أنه طالب عائد ومستواه الجديد');
+await expectError('طلب ثالث والطلب الجديد ما زال مفتوحاً', () => as('anon', null, () =>
+  q1(`select submit_application($1::jsonb)`, [JSON.stringify({ ...payload, level_id: level2.id })])));
+ok((await as('anon', null, () => q1(`select check_returning_student('119870001234', '2005-03-01') r`))).r.open_application.reg_no === again2.r.reg_no,
+  'الطلب المفتوح يظهر في نتيجة التحقق');
+
+// إغلاق التسجيل من الإعدادات (بديل الدورات)
+await as('authenticated', ADMIN, () => db.query(`update settings set registration_open = false where id = 1`));
+await expectError('التسجيل مغلق من الإعدادات', () => as('anon', null, () =>
+  q1(`select submit_application($1::jsonb)`, [JSON.stringify({ ...payload, national_id: '120000008888', level_id: level2.id })])));
+await as('authenticated', ADMIN, () => db.query(`update settings set registration_open = true where id = 1`));
 
 console.log('\n— إعدادات الهوية والقالب والمكاتب');
 const setCols = await qa(`select column_name from information_schema.columns

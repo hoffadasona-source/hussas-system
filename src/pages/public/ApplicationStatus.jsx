@@ -90,7 +90,7 @@ export default function ApplicationStatus() {
               <div className="card-b">
                 <Kv items={[
                   ['اسم الطالب', a.student_name],
-                  ['الدورة', a.cycle],
+                  ['المستوى', a.level],
                   ['المكتب', a.office],
                   ['الحلقة', a.circle],
                   ['المحفّظ', a.examiner || 'لم يُحَل بعد'],

@@ -150,7 +150,7 @@ const result = must(await anon.rpc('lookup_result', { p_query: receipt.student_n
 ok(result.state === 'published' && Number(result.score) === 96.33 && result.certificate?.cert_no === certNo, 'الاستعلام عن النتيجة المعتمدة');
 const verified = must(await anon.rpc('verify_certificate', { p_cert_no: certNo }), 'verify');
 ok(verified.status === 'valid', 'التحقق من الشهادة');
-const report = must(await clerkC.rpc('report_summary', { p_cycle_id: null, p_office_id: null, p_from: null, p_to: null }), 'report');
+const report = must(await clerkC.rpc('report_summary', { p_office_id: null, p_from: null, p_to: null }), 'report');
 ok(report.exams >= 1, 'التقارير', `امتحانات معتمدة: ${report.exams}`);
 const audit = must(await clerkC.from('audit_log').select('action, ip').in('entity_id', [receipt.reg_no, certNo]), 'audit');
 ok(audit.length >= 3, 'سجل العمليات', audit.map((a) => a.action).join(' · '));

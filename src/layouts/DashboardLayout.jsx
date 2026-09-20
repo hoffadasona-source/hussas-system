@@ -30,7 +30,7 @@ function adminNav(can) {
     ['الإعداد', [
       ['/admin/arbitration', 'أساس التحكيم', Icon.list],
       ['/admin/reports', 'التقارير', Icon.chart],
-      ['/admin/messages', 'الرسائل', Icon.whatsapp, 'failedMessages'],
+      ['/admin/messages', 'الإشعارات', Icon.whatsapp, 'failedMessages'],
       can('super') && ['/admin/users', 'المستخدمون والصلاحيات', Icon.users],
       ['/admin/settings', 'الإعدادات', Icon.cog],
       ['/admin/audit-log', 'سجل العمليات', Icon.file],

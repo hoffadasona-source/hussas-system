@@ -1,7 +1,7 @@
 // استيراد طلبات قائمة من ملف CSV (يُحفظ من Excel بصيغة «CSV UTF-8»).
 //
 // الاستخدام:
-//   npm run import -- <ملف.csv> --user <اسم مستخدم إداري> --password <كلمة المرور> [--dry-run] [--cycle "<اسم الدورة>"]
+//   npm run import -- <ملف.csv> --user <اسم مستخدم إداري> --password <كلمة المرور> [--dry-run]
 //
 // - يدخل بحساب إداري حقيقي، فتمر كل الطلبات عبر نفس التحقق وسجل العمليات كالتسجيل اليدوي.
 // - --dry-run: يتحقق من الملف ويطابق المكاتب والمستويات دون إنشاء أي طلب.
@@ -16,15 +16,14 @@ const flag = (name) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : undefined;
 };
-const VALUE_FLAGS = ['--user', '--password', '--cycle'];
+const VALUE_FLAGS = ['--user', '--password'];
 const file = args.find((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(args[i - 1]));
 const dryRun = args.includes('--dry-run');
 const username = flag('user');
 const password = flag('password');
-const cycleName = flag('cycle');
 
 if (!file || !username || !password) {
-  console.error('الاستخدام: npm run import -- data.csv --user admin --password "..." [--dry-run] [--cycle "اسم الدورة"]');
+  console.error('الاستخدام: npm run import -- data.csv --user admin --password "..." [--dry-run]');
   process.exit(1);
 }
 const url = process.env.VITE_SUPABASE_URL;
@@ -50,18 +49,10 @@ if (!isAdmin) {
   process.exit(1);
 }
 
-const [offices, levels, cycles] = await Promise.all(
-  ['offices', 'levels', 'cycles'].map((t) => supabase.from(t).select('*')),
+const [offices, levels] = await Promise.all(
+  ['offices', 'levels'].map((t) => supabase.from(t).select('*')),
 );
 const lookups = { offices: offices.data.filter((x) => x.active), levels: levels.data.filter((x) => x.active) };
-let cycleId;
-if (cycleName) {
-  cycleId = cycles.data.find((c) => c.name.trim() === cycleName.trim())?.id;
-  if (!cycleId) {
-    console.error(`الدورة «${cycleName}» غير موجودة. الدورات المتاحة: ${cycles.data.map((c) => c.name).join('، ')}`);
-    process.exit(1);
-  }
-}
 
 const { header, rows } = parseCsv(fs.readFileSync(file, 'utf8'));
 const { index, missing } = mapHeader(header);
@@ -71,7 +62,7 @@ if (missing.length) {
   process.exit(1);
 }
 
-console.log(`${dryRun ? 'فحص' : 'استيراد'} ${rows.length} صف من ${file}${cycleName ? ` إلى ${cycleName}` : ' إلى الدورة الحالية'}…`);
+console.log(`${dryRun ? 'فحص' : 'استيراد'} ${rows.length} صف من ${file}…`);
 const report = [['الصف', 'الاسم', 'الرقم الوطني', 'النتيجة', 'رقم الطلب', 'رقم الطالب', 'الملاحظة']];
 const seen = new Set();
 let okCount = 0;
@@ -92,7 +83,7 @@ for (const [i, cells] of rows.entries()) {
     report.push([line, name, payload.national_id, 'صالح', '', '', '']);
     continue;
   }
-  const { data, error } = await supabase.rpc('submit_application', { p: cycleId ? { ...payload, cycle_id: cycleId } : payload });
+  const { data, error } = await supabase.rpc('submit_application', { p: payload });
   if (error) {
     report.push([line, name, payload.national_id, 'مرفوض', '', '', error.message]);
     console.log(`  ✗ ${line}: ${name} — ${error.message}`);
